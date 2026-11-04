@@ -1,0 +1,19 @@
+# Gradle build files
+.gradle/
+build/
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Developer-local Spring Boot configuration may contain database credentials.
+application-local.properties
+application-local.yml
+application-local.yaml
+
+# IDE files
+.idea/
+*.iml
+.DS_Store

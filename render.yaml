@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: vms-backend
+    runtime: docker
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_SECONDS
+        value: "900"
+      - key: JWT_ISSUER
+        value: stark-vms-backend
+      - key: JWT_AUDIENCE
+        value: stark-vms-frontend
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
