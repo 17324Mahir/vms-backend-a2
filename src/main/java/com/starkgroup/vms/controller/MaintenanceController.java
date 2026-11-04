@@ -67,3 +67,4 @@ public class MaintenanceController {
         return ResponseEntity.noContent().build();
     }
 }
+

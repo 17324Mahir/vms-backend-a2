@@ -22,3 +22,4 @@ public interface VehicleDocumentRepository extends JpaRepository<VehicleDocument
 
     List<VehicleDocument> findTop10ByExpiryDateBetweenOrderByExpiryDateAsc(LocalDate start, LocalDate end);
 }
+

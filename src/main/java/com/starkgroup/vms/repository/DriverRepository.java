@@ -41,3 +41,4 @@ public interface DriverRepository extends JpaRepository<Driver, Long> {
                                @Param("status") DriverStatus status,
                                Pageable pageable);
 }
+

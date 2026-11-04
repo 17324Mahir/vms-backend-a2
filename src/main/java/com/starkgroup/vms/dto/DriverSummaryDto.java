@@ -73,3 +73,4 @@ public class DriverSummaryDto {
         this.status = status;
     }
 }
+

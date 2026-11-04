@@ -166,3 +166,4 @@ public class VehicleDocument {
         return Objects.hash(id);
     }
 }
+

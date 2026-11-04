@@ -10,3 +10,4 @@ public enum MaintenanceType {
     INSPECTION,
     OTHER
 }
+

@@ -20,3 +20,4 @@ public record DashboardStatsResponse(
     List<MaintenanceResponse> recentMaintenance
 ) {
 }
+

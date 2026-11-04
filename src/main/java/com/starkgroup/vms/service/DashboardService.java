@@ -6,3 +6,4 @@ public interface DashboardService {
 
     DashboardStatsResponse getDashboardStats();
 }
+

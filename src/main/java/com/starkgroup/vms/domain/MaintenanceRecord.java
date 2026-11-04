@@ -142,3 +142,4 @@ public class MaintenanceRecord {
         return Objects.hash(id);
     }
 }
+

@@ -7,3 +7,4 @@ public enum DocumentType {
     FITNESS_CERTIFICATE,
     OTHER
 }
+

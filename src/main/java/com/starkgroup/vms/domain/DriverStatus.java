@@ -6,3 +6,4 @@ public enum DriverStatus {
     ON_LEAVE,
     INACTIVE
 }
+

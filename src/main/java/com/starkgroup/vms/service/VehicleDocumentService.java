@@ -23,3 +23,4 @@ public interface VehicleDocumentService {
 
     List<DocumentResponse> getUpcomingExpiries(int limit);
 }
+

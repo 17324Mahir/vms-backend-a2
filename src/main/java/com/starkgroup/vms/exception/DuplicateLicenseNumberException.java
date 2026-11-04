@@ -10,3 +10,4 @@ public class DuplicateLicenseNumberException extends RuntimeException {
         super(message, cause);
     }
 }
+

@@ -32,3 +32,4 @@ CREATE TABLE IF NOT EXISTS vehicle_maintenance_records (
 
 CREATE INDEX IF NOT EXISTS idx_vehicle_maintenance_vehicle_id ON vehicle_maintenance_records(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_vehicle_maintenance_date ON vehicle_maintenance_records(maintenance_date);
+

@@ -29,3 +29,4 @@ public interface MaintenanceRecordRepository extends JpaRepository<MaintenanceRe
 
     List<MaintenanceRecord> findTop10ByOrderByMaintenanceDateDesc();
 }
+
