@@ -129,12 +129,48 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
+    @ExceptionHandler(DriverNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleDriverNotFound(
+            DriverNotFoundException ex, HttpServletRequest request) {
+        ErrorResponse error = ErrorResponse.of(
+                HttpStatus.NOT_FOUND.value(),
+                "DRIVER_NOT_FOUND",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException ex, HttpServletRequest request) {
+        ErrorResponse error = ErrorResponse.of(
+                HttpStatus.NOT_FOUND.value(),
+                "RESOURCE_NOT_FOUND",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
     @ExceptionHandler(DuplicateVehicleNumberException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateVehicleNumber(
             DuplicateVehicleNumberException ex, HttpServletRequest request) {
         ErrorResponse error = ErrorResponse.of(
                 HttpStatus.CONFLICT.value(),
                 "DUPLICATE_VEHICLE_NUMBER",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    @ExceptionHandler(DuplicateLicenseNumberException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateLicenseNumber(
+            DuplicateLicenseNumberException ex, HttpServletRequest request) {
+        ErrorResponse error = ErrorResponse.of(
+                HttpStatus.CONFLICT.value(),
+                "DUPLICATE_LICENSE_NUMBER",
                 ex.getMessage(),
                 request.getRequestURI()
         );

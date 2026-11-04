@@ -1,6 +1,7 @@
 package com.starkgroup.vms.domain;
 
 import jakarta.persistence.*;
+import java.time.OffsetDateTime;
 import java.util.Objects;
 
 @Entity
@@ -31,6 +32,16 @@ public class Vehicle {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
     private VehicleStatus status;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_driver_id")
+    private Driver assignedDriver;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private OffsetDateTime createdAt;
+
+    @Column(name = "updated_at", insertable = false, updatable = false)
+    private OffsetDateTime updatedAt;
 
     public Vehicle() {
     }
@@ -108,6 +119,22 @@ public class Vehicle {
 
     public void setStatus(VehicleStatus status) {
         this.status = status;
+    }
+
+    public Driver getAssignedDriver() {
+        return assignedDriver;
+    }
+
+    public void setAssignedDriver(Driver assignedDriver) {
+        this.assignedDriver = assignedDriver;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
     }
 
     @Override

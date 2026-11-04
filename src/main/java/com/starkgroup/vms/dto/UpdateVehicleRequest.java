@@ -27,6 +27,18 @@ public record UpdateVehicleRequest(
     String model,
 
     @NotNull(message = "Status is required")
-    VehicleStatus status
+    VehicleStatus status,
+
+    Long assignedDriverId
 ) {
+    public UpdateVehicleRequest(
+        String vehicleNumber,
+        String company,
+        String type,
+        String brand,
+        String model,
+        VehicleStatus status
+    ) {
+        this(vehicleNumber, company, type, brand, model, status, null);
+    }
 }
