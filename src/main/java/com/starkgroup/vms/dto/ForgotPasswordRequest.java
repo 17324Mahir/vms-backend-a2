@@ -14,3 +14,4 @@ public record ForgotPasswordRequest(
         String email
 ) {
 }
+

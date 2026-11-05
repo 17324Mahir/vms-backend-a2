@@ -9,11 +9,13 @@ import com.starkgroup.vms.exception.ResourceNotFoundException;
 import com.starkgroup.vms.exception.VehicleNotFoundException;
 import com.starkgroup.vms.repository.MaintenanceRecordRepository;
 import com.starkgroup.vms.repository.VehicleRepository;
+import com.starkgroup.vms.util.SecurityUtils;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -49,7 +51,8 @@ public class MaintenanceServiceImpl implements MaintenanceService {
         if (vehicleId == null) {
             throw new VehicleNotFoundException("Vehicle ID must not be null");
         }
-        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Vehicle vehicle = vehicleRepository.findByIdAndUserEmailIgnoreCase(vehicleId, userEmail)
                 .orElseThrow(() -> new VehicleNotFoundException(vehicleId));
 
         validate(request);
@@ -81,9 +84,9 @@ public class MaintenanceServiceImpl implements MaintenanceService {
         if (vehicleId == null) {
             throw new VehicleNotFoundException("Vehicle ID must not be null");
         }
-        if (!vehicleRepository.existsById(vehicleId)) {
-            throw new VehicleNotFoundException(vehicleId);
-        }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Vehicle vehicle = vehicleRepository.findByIdAndUserEmailIgnoreCase(vehicleId, userEmail)
+                .orElseThrow(() -> new VehicleNotFoundException(vehicleId));
 
         return maintenanceRepository.findByVehicleIdOrderByMaintenanceDateDesc(vehicleId).stream()
                 .map(MaintenanceResponse::from)
@@ -188,6 +191,26 @@ public class MaintenanceServiceImpl implements MaintenanceService {
         if (records.size() > limit) {
             records = records.subList(0, limit);
         }
+        return records.stream().map(MaintenanceResponse::from).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalMaintenanceCostForUser(String userEmail) {
+        BigDecimal total = maintenanceRepository.calculateTotalMaintenanceCostByUser(userEmail);
+        return total != null ? total : BigDecimal.ZERO;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countTotalMaintenanceRecordsForUser(String userEmail) {
+        return maintenanceRepository.countByUserEmail(userEmail);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MaintenanceResponse> getRecentMaintenanceForUser(String userEmail, int limit) {
+        List<MaintenanceRecord> records = maintenanceRepository.findRecentByUser(userEmail, PageRequest.of(0, limit));
         return records.stream().map(MaintenanceResponse::from).toList();
     }
 

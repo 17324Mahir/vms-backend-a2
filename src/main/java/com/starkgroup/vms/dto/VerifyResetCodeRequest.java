@@ -22,3 +22,4 @@ public record VerifyResetCodeRequest(
         String newPassword
 ) {
 }
+

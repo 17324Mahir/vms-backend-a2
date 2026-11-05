@@ -14,3 +14,4 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_email ON password_reset_tokens (email);
 CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_code ON password_reset_tokens (token_code);
+

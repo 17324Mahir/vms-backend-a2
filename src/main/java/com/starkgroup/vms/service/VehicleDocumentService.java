@@ -22,5 +22,11 @@ public interface VehicleDocumentService {
     long countExpiringSoonDocuments(int days);
 
     List<DocumentResponse> getUpcomingExpiries(int limit);
+
+    long countExpiredDocumentsForUser(String userEmail);
+
+    long countExpiringSoonDocumentsForUser(String userEmail, int days);
+
+    List<DocumentResponse> getUpcomingExpiriesForUser(String userEmail, int limit);
 }
 

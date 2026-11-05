@@ -7,7 +7,7 @@ import java.util.Objects;
 
 @Entity
 @Table(name = "drivers", uniqueConstraints = {
-    @UniqueConstraint(name = "uk_drivers_license_number", columnNames = "license_number")
+    @UniqueConstraint(name = "uk_drivers_user_license_number", columnNames = {"user_email", "license_number"})
 })
 public class Driver {
 
@@ -15,10 +15,13 @@ public class Driver {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "user_email", length = 160, nullable = false)
+    private String userEmail = "test@starkgroup.test";
+
     @Column(name = "name", length = 120, nullable = false)
     private String name;
 
-    @Column(name = "license_number", length = 60, nullable = false, unique = true)
+    @Column(name = "license_number", length = 60, nullable = false)
     private String licenseNumber;
 
     @Column(name = "phone", length = 40, nullable = false)
@@ -58,6 +61,14 @@ public class Driver {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getUserEmail() {
+        return userEmail;
+    }
+
+    public void setUserEmail(String userEmail) {
+        this.userEmail = userEmail;
     }
 
     public String getName() {

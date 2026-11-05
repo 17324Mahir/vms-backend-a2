@@ -8,6 +8,7 @@ import com.starkgroup.vms.dto.MaintenanceResponse;
 import com.starkgroup.vms.repository.DriverRepository;
 import com.starkgroup.vms.repository.VehicleDocumentRepository;
 import com.starkgroup.vms.repository.VehicleRepository;
+import com.starkgroup.vms.util.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,24 +39,26 @@ public class DashboardServiceImpl implements DashboardService {
     @Override
     @Transactional(readOnly = true)
     public DashboardStatsResponse getDashboardStats() {
-        long totalVehicles = vehicleRepository.count();
-        long activeVehicles = vehicleRepository.countByStatus(VehicleStatus.ACTIVE);
-        long maintenanceVehicles = vehicleRepository.countByStatus(VehicleStatus.MAINTENANCE);
-        long inactiveVehicles = vehicleRepository.countByStatus(VehicleStatus.INACTIVE);
+        String userEmail = SecurityUtils.getCurrentUserEmail();
 
-        long totalDrivers = driverRepository.count();
-        long availableDrivers = driverRepository.countByStatus(DriverStatus.AVAILABLE);
-        long assignedDrivers = driverRepository.countByStatus(DriverStatus.ASSIGNED);
+        long totalVehicles = vehicleRepository.countByUserEmailIgnoreCase(userEmail);
+        long activeVehicles = vehicleRepository.countByUserEmailIgnoreCaseAndStatus(userEmail, VehicleStatus.ACTIVE);
+        long maintenanceVehicles = vehicleRepository.countByUserEmailIgnoreCaseAndStatus(userEmail, VehicleStatus.MAINTENANCE);
+        long inactiveVehicles = vehicleRepository.countByUserEmailIgnoreCaseAndStatus(userEmail, VehicleStatus.INACTIVE);
 
-        long totalDocuments = documentRepository.count();
-        long expiredDocuments = documentService.countExpiredDocuments();
-        long expiringSoonDocuments = documentService.countExpiringSoonDocuments(30);
+        long totalDrivers = driverRepository.countByUserEmailIgnoreCase(userEmail);
+        long availableDrivers = driverRepository.countByUserEmailIgnoreCaseAndStatus(userEmail, DriverStatus.AVAILABLE);
+        long assignedDrivers = driverRepository.countByUserEmailIgnoreCaseAndStatus(userEmail, DriverStatus.ASSIGNED);
 
-        BigDecimal totalMaintenanceCost = maintenanceService.getTotalMaintenanceCost();
-        long totalMaintenanceRecords = maintenanceService.countTotalMaintenanceRecords();
+        long totalDocuments = documentRepository.countByUserEmail(userEmail);
+        long expiredDocuments = documentService.countExpiredDocumentsForUser(userEmail);
+        long expiringSoonDocuments = documentService.countExpiringSoonDocumentsForUser(userEmail, 30);
 
-        List<DocumentResponse> upcomingExpiries = documentService.getUpcomingExpiries(5);
-        List<MaintenanceResponse> recentMaintenance = maintenanceService.getRecentMaintenance(5);
+        BigDecimal totalMaintenanceCost = maintenanceService.getTotalMaintenanceCostForUser(userEmail);
+        long totalMaintenanceRecords = maintenanceService.countTotalMaintenanceRecordsForUser(userEmail);
+
+        List<DocumentResponse> upcomingExpiries = documentService.getUpcomingExpiriesForUser(userEmail, 5);
+        List<MaintenanceResponse> recentMaintenance = maintenanceService.getRecentMaintenanceForUser(userEmail, 5);
 
         return new DashboardStatsResponse(
                 totalVehicles,
@@ -68,7 +71,7 @@ public class DashboardServiceImpl implements DashboardService {
                 totalDocuments,
                 expiredDocuments,
                 expiringSoonDocuments,
-                totalMaintenanceCost,
+                totalMaintenanceCost != null ? totalMaintenanceCost : BigDecimal.ZERO,
                 totalMaintenanceRecords,
                 upcomingExpiries,
                 recentMaintenance

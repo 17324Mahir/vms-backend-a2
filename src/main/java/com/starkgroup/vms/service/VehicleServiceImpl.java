@@ -15,6 +15,7 @@ import com.starkgroup.vms.repository.DriverRepository;
 import com.starkgroup.vms.repository.MaintenanceRecordRepository;
 import com.starkgroup.vms.repository.VehicleDocumentRepository;
 import com.starkgroup.vms.repository.VehicleRepository;
+import com.starkgroup.vms.util.SecurityUtils;
 import com.starkgroup.vms.util.VehicleNumberNormalizer;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -31,6 +32,7 @@ import org.springframework.validation.annotation.Validated;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -68,13 +70,15 @@ public class VehicleServiceImpl implements VehicleService {
     public VehicleResponse createVehicle(CreateVehicleRequest request) {
         validate(request);
 
+        String userEmail = SecurityUtils.getCurrentUserEmail();
         String normalizedNumber = VehicleNumberNormalizer.normalize(request.vehicleNumber());
 
-        if (vehicleRepository.existsByVehicleNumber(normalizedNumber)) {
+        if (checkVehicleNumberExists(normalizedNumber, userEmail)) {
             throw new DuplicateVehicleNumberException(DUPLICATE_VEHICLE_NUMBER_MESSAGE);
         }
 
         Vehicle vehicle = new Vehicle();
+        vehicle.setUserEmail(userEmail);
         vehicle.setVehicleNumber(normalizedNumber);
         vehicle.setCompany(request.company().trim());
         vehicle.setType(request.type().trim());
@@ -83,7 +87,7 @@ public class VehicleServiceImpl implements VehicleService {
         vehicle.setStatus(request.status());
 
         if (request.assignedDriverId() != null && driverRepository != null) {
-            Driver driver = driverRepository.findById(request.assignedDriverId())
+            Driver driver = findDriverScoped(request.assignedDriverId(), userEmail)
                     .orElseThrow(() -> new DriverNotFoundException(request.assignedDriverId()));
             vehicle.setAssignedDriver(driver);
             driver.setStatus(DriverStatus.ASSIGNED);
@@ -107,7 +111,8 @@ public class VehicleServiceImpl implements VehicleService {
         if (id == null) {
             throw new VehicleNotFoundException("Vehicle ID must not be null");
         }
-        Vehicle vehicle = vehicleRepository.findById(id)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Vehicle vehicle = findVehicleScoped(id, userEmail)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
         return toDetailedResponse(vehicle);
     }
@@ -115,7 +120,14 @@ public class VehicleServiceImpl implements VehicleService {
     @Override
     @Transactional(readOnly = true)
     public List<VehicleResponse> getAllVehicles() {
-        return vehicleRepository.findAll().stream()
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        List<Vehicle> list = vehicleRepository.findAllByUserEmailIgnoreCase(userEmail);
+        if (list.isEmpty() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
+            list = vehicleRepository.findAll().stream()
+                    .filter(v -> v.getUserEmail() == null || v.getUserEmail().equalsIgnoreCase(userEmail))
+                    .toList();
+        }
+        return list.stream()
                 .map(this::toDetailedResponse)
                 .toList();
     }
@@ -123,7 +135,8 @@ public class VehicleServiceImpl implements VehicleService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<VehicleResponse> searchVehicles(String search, VehicleStatus status, String company, Pageable pageable) {
-        Page<Vehicle> page = vehicleRepository.searchVehicles(search, status, company, pageable);
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Page<Vehicle> page = vehicleRepository.searchVehiclesByUser(userEmail, search, status, company, pageable);
         List<VehicleResponse> content = page.getContent().stream()
                 .map(this::toDetailedResponse)
                 .toList();
@@ -138,14 +151,15 @@ public class VehicleServiceImpl implements VehicleService {
             throw new VehicleNotFoundException("Vehicle ID must not be null");
         }
 
-        Vehicle existing = vehicleRepository.findById(id)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Vehicle existing = findVehicleScoped(id, userEmail)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
 
         validate(request);
 
         String normalizedNumber = VehicleNumberNormalizer.normalize(request.vehicleNumber());
 
-        if (vehicleRepository.existsByVehicleNumberAndIdNot(normalizedNumber, id)) {
+        if (checkVehicleNumberExistsAndIdNot(normalizedNumber, userEmail, id)) {
             throw new DuplicateVehicleNumberException(DUPLICATE_VEHICLE_NUMBER_MESSAGE);
         }
 
@@ -156,7 +170,7 @@ public class VehicleServiceImpl implements VehicleService {
         existing.setModel(request.model().trim());
         existing.setStatus(request.status());
 
-        // Manage driver assignment change
+        // Manage driver assignment change within user scope
         if (driverRepository != null) {
             Long newDriverId = request.assignedDriverId();
             Driver previousDriver = existing.getAssignedDriver();
@@ -164,17 +178,17 @@ public class VehicleServiceImpl implements VehicleService {
             if (newDriverId == null) {
                 if (previousDriver != null) {
                     existing.setAssignedDriver(null);
-                    updateDriverStatusIfNoOtherVehicles(previousDriver.getId());
+                    updateDriverStatusIfNoOtherVehicles(previousDriver.getId(), userEmail);
                 }
             } else if (previousDriver == null || !previousDriver.getId().equals(newDriverId)) {
-                Driver newDriver = driverRepository.findById(newDriverId)
+                Driver newDriver = findDriverScoped(newDriverId, userEmail)
                         .orElseThrow(() -> new DriverNotFoundException(newDriverId));
                 existing.setAssignedDriver(newDriver);
                 newDriver.setStatus(DriverStatus.ASSIGNED);
                 driverRepository.save(newDriver);
 
                 if (previousDriver != null) {
-                    updateDriverStatusIfNoOtherVehicles(previousDriver.getId());
+                    updateDriverStatusIfNoOtherVehicles(previousDriver.getId(), userEmail);
                 }
             }
         }
@@ -196,7 +210,8 @@ public class VehicleServiceImpl implements VehicleService {
         if (id == null) {
             throw new VehicleNotFoundException("Vehicle ID must not be null");
         }
-        Vehicle vehicle = vehicleRepository.findById(id)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Vehicle vehicle = findVehicleScoped(id, userEmail)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
         vehicle.setStatus(status);
         Vehicle saved = vehicleRepository.save(vehicle);
@@ -213,14 +228,15 @@ public class VehicleServiceImpl implements VehicleService {
             throw new DriverNotFoundException("Driver ID must not be null");
         }
 
-        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Vehicle vehicle = findVehicleScoped(vehicleId, userEmail)
                 .orElseThrow(() -> new VehicleNotFoundException(vehicleId));
 
         if (driverRepository == null) {
             return toDetailedResponse(vehicle);
         }
 
-        Driver driver = driverRepository.findById(driverId)
+        Driver driver = findDriverScoped(driverId, userEmail)
                 .orElseThrow(() -> new DriverNotFoundException(driverId));
 
         Driver previousDriver = vehicle.getAssignedDriver();
@@ -229,7 +245,7 @@ public class VehicleServiceImpl implements VehicleService {
         driverRepository.save(driver);
 
         if (previousDriver != null && !previousDriver.getId().equals(driverId)) {
-            updateDriverStatusIfNoOtherVehicles(previousDriver.getId());
+            updateDriverStatusIfNoOtherVehicles(previousDriver.getId(), userEmail);
         }
 
         Vehicle saved = vehicleRepository.save(vehicle);
@@ -242,13 +258,14 @@ public class VehicleServiceImpl implements VehicleService {
         if (vehicleId == null) {
             throw new VehicleNotFoundException("Vehicle ID must not be null");
         }
-        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Vehicle vehicle = findVehicleScoped(vehicleId, userEmail)
                 .orElseThrow(() -> new VehicleNotFoundException(vehicleId));
 
         Driver previousDriver = vehicle.getAssignedDriver();
         if (previousDriver != null) {
             vehicle.setAssignedDriver(null);
-            updateDriverStatusIfNoOtherVehicles(previousDriver.getId());
+            updateDriverStatusIfNoOtherVehicles(previousDriver.getId(), userEmail);
             Vehicle saved = vehicleRepository.save(vehicle);
             return toDetailedResponse(saved);
         }
@@ -263,22 +280,74 @@ public class VehicleServiceImpl implements VehicleService {
             throw new VehicleNotFoundException("Vehicle ID must not be null");
         }
 
-        Vehicle vehicle = vehicleRepository.findById(id)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Vehicle vehicle = findVehicleScoped(id, userEmail)
                 .orElseThrow(() -> new VehicleNotFoundException(id));
 
         Driver previousDriver = vehicle.getAssignedDriver();
         vehicleRepository.delete(vehicle);
 
         if (previousDriver != null) {
-            updateDriverStatusIfNoOtherVehicles(previousDriver.getId());
+            updateDriverStatusIfNoOtherVehicles(previousDriver.getId(), userEmail);
         }
     }
 
-    private void updateDriverStatusIfNoOtherVehicles(Long driverId) {
+    private Optional<Vehicle> findVehicleScoped(Long id, String userEmail) {
+        Optional<Vehicle> opt = vehicleRepository.findByIdAndUserEmailIgnoreCase(id, userEmail);
+        if (opt.isPresent()) {
+            return opt;
+        }
+        Optional<Vehicle> fallback = vehicleRepository.findById(id);
+        if (fallback.isPresent() && (fallback.get().getUserEmail() == null || fallback.get().getUserEmail().equalsIgnoreCase(userEmail))) {
+            return fallback;
+        }
+        if (fallback.isPresent() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
+            return fallback;
+        }
+        return Optional.empty();
+    }
+
+    private Optional<Driver> findDriverScoped(Long id, String userEmail) {
+        if (driverRepository == null) return Optional.empty();
+        Optional<Driver> opt = driverRepository.findByIdAndUserEmailIgnoreCase(id, userEmail);
+        if (opt.isPresent()) {
+            return opt;
+        }
+        Optional<Driver> fallback = driverRepository.findById(id);
+        if (fallback.isPresent() && (fallback.get().getUserEmail() == null || fallback.get().getUserEmail().equalsIgnoreCase(userEmail))) {
+            return fallback;
+        }
+        if (fallback.isPresent() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
+            return fallback;
+        }
+        return Optional.empty();
+    }
+
+    private boolean checkVehicleNumberExists(String vehicleNumber, String userEmail) {
+        if (vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase(vehicleNumber, userEmail)) {
+            return true;
+        }
+        if (vehicleRepository.existsByVehicleNumber(vehicleNumber) && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean checkVehicleNumberExistsAndIdNot(String vehicleNumber, String userEmail, Long id) {
+        if (vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCaseAndIdNot(vehicleNumber, userEmail, id)) {
+            return true;
+        }
+        if (vehicleRepository.existsByVehicleNumberAndIdNot(vehicleNumber, id) && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
+            return true;
+        }
+        return false;
+    }
+
+    private void updateDriverStatusIfNoOtherVehicles(Long driverId, String userEmail) {
         if (driverRepository == null || driverId == null) return;
-        List<Vehicle> otherVehicles = vehicleRepository.findByAssignedDriverId(driverId);
+        List<Vehicle> otherVehicles = vehicleRepository.findByUserEmailIgnoreCaseAndAssignedDriverId(userEmail, driverId);
         if (otherVehicles.isEmpty()) {
-            driverRepository.findById(driverId).ifPresent(driver -> {
+            findDriverScoped(driverId, userEmail).ifPresent(driver -> {
                 driver.setStatus(DriverStatus.AVAILABLE);
                 driverRepository.save(driver);
             });
@@ -304,6 +373,22 @@ public class VehicleServiceImpl implements VehicleService {
         return VehicleResponse.from(vehicle, docCount, maintCount, totalCost);
     }
 
+    private boolean isVehicleNumberUniqueConstraintViolation(DataIntegrityViolationException ex) {
+        Throwable rootCause = ex.getRootCause();
+        if (rootCause == null) {
+            rootCause = ex;
+        }
+        String message = rootCause.getMessage();
+        if (message == null) {
+            return false;
+        }
+        String lowerMessage = message.toLowerCase(Locale.ROOT);
+        return lowerMessage.contains("uk_vehicles_vehicle_number")
+                || lowerMessage.contains("uk_vehicles_user_vehicle_number")
+                || lowerMessage.contains("vehicle_number")
+                || lowerMessage.contains("duplicate key");
+    }
+
     private <T> void validate(T object) {
         if (object == null) {
             throw new IllegalArgumentException("Request body must not be null");
@@ -312,29 +397,5 @@ public class VehicleServiceImpl implements VehicleService {
         if (!violations.isEmpty()) {
             throw new ConstraintViolationException(violations);
         }
-    }
-
-    private boolean isVehicleNumberUniqueConstraintViolation(DataIntegrityViolationException ex) {
-        Throwable current = ex;
-        while (current != null) {
-            if (current instanceof org.hibernate.exception.ConstraintViolationException cve) {
-                String constraintName = cve.getConstraintName();
-                if (constraintName != null && matchesConstraint(constraintName)) {
-                    return true;
-                }
-            }
-            String msg = current.getMessage();
-            if (msg != null && matchesConstraint(msg)) {
-                return true;
-            }
-            current = current.getCause();
-        }
-        return false;
-    }
-
-    private boolean matchesConstraint(String text) {
-        String lower = text.toLowerCase(Locale.ROOT);
-        return lower.contains("uk_vehicles_vehicle_number")
-                || (lower.contains("vehicle_number") && lower.contains("unique"));
     }
 }

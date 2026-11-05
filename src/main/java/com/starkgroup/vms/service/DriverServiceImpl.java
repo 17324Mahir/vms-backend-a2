@@ -12,6 +12,7 @@ import com.starkgroup.vms.exception.DriverNotFoundException;
 import com.starkgroup.vms.exception.DuplicateLicenseNumberException;
 import com.starkgroup.vms.repository.DriverRepository;
 import com.starkgroup.vms.repository.VehicleRepository;
+import com.starkgroup.vms.util.SecurityUtils;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
@@ -25,6 +26,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -52,12 +54,15 @@ public class DriverServiceImpl implements DriverService {
     public DriverResponse createDriver(CreateDriverRequest request) {
         validate(request);
 
+        String userEmail = SecurityUtils.getCurrentUserEmail();
         String normalizedLicense = request.getLicenseNumber().trim();
-        if (driverRepository.existsByLicenseNumberIgnoreCase(normalizedLicense)) {
+
+        if (checkLicenseExists(normalizedLicense, userEmail)) {
             throw new DuplicateLicenseNumberException("A driver with license number '" + normalizedLicense + "' already exists.");
         }
 
         Driver driver = new Driver();
+        driver.setUserEmail(userEmail);
         driver.setName(request.getName().trim());
         driver.setLicenseNumber(normalizedLicense);
         driver.setPhone(request.getPhone() != null ? request.getPhone().trim() : null);
@@ -75,10 +80,11 @@ public class DriverServiceImpl implements DriverService {
         if (id == null) {
             throw new DriverNotFoundException("Driver ID must not be null");
         }
-        Driver driver = driverRepository.findById(id)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Driver driver = findDriverScoped(id, userEmail)
                 .orElseThrow(() -> new DriverNotFoundException(id));
 
-        List<Vehicle> assignedVehicles = vehicleRepository.findByAssignedDriverId(id);
+        List<Vehicle> assignedVehicles = vehicleRepository.findByUserEmailIgnoreCaseAndAssignedDriverId(userEmail, id);
         Vehicle assignedVehicle = assignedVehicles.isEmpty() ? null : assignedVehicles.get(0);
 
         return DriverResponse.fromEntity(driver, assignedVehicle);
@@ -87,8 +93,15 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional(readOnly = true)
     public List<DriverResponse> getAllDrivers() {
-        List<Driver> drivers = driverRepository.findAll();
-        Map<Long, Vehicle> driverToVehicleMap = vehicleRepository.findAll().stream()
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        List<Driver> drivers = driverRepository.findAllByUserEmailIgnoreCase(userEmail);
+        if (drivers.isEmpty() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
+            drivers = driverRepository.findAll().stream()
+                    .filter(d -> d.getUserEmail() == null || d.getUserEmail().equalsIgnoreCase(userEmail))
+                    .toList();
+        }
+
+        Map<Long, Vehicle> driverToVehicleMap = vehicleRepository.findAllByUserEmailIgnoreCase(userEmail).stream()
                 .filter(v -> v.getAssignedDriver() != null)
                 .collect(Collectors.toMap(v -> v.getAssignedDriver().getId(), v -> v, (v1, v2) -> v1));
 
@@ -100,7 +113,12 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional(readOnly = true)
     public List<DriverSummaryDto> getAvailableDrivers() {
-        return driverRepository.findAll().stream()
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        List<Driver> drivers = driverRepository.findByUserEmailIgnoreCaseAndStatus(userEmail, DriverStatus.AVAILABLE);
+        if (drivers.isEmpty() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
+            drivers = driverRepository.findByStatus(DriverStatus.AVAILABLE);
+        }
+        return drivers.stream()
                 .map(DriverSummaryDto::fromEntity)
                 .toList();
     }
@@ -108,9 +126,10 @@ public class DriverServiceImpl implements DriverService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<DriverResponse> searchDrivers(String search, DriverStatus status, Pageable pageable) {
-        Page<Driver> page = driverRepository.searchDrivers(search, status, pageable);
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Page<Driver> page = driverRepository.searchDriversByUser(userEmail, search, status, pageable);
 
-        Map<Long, Vehicle> driverToVehicleMap = vehicleRepository.findAll().stream()
+        Map<Long, Vehicle> driverToVehicleMap = vehicleRepository.findAllByUserEmailIgnoreCase(userEmail).stream()
                 .filter(v -> v.getAssignedDriver() != null)
                 .collect(Collectors.toMap(v -> v.getAssignedDriver().getId(), v -> v, (v1, v2) -> v1));
 
@@ -128,13 +147,14 @@ public class DriverServiceImpl implements DriverService {
             throw new DriverNotFoundException("Driver ID must not be null");
         }
 
-        Driver driver = driverRepository.findById(id)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Driver driver = findDriverScoped(id, userEmail)
                 .orElseThrow(() -> new DriverNotFoundException(id));
 
         validate(request);
 
         String normalizedLicense = request.getLicenseNumber().trim();
-        if (driverRepository.existsByLicenseNumberIgnoreCaseAndIdNot(normalizedLicense, id)) {
+        if (checkLicenseExistsAndIdNot(normalizedLicense, userEmail, id)) {
             throw new DuplicateLicenseNumberException("A driver with license number '" + normalizedLicense + "' already exists.");
         }
 
@@ -147,7 +167,7 @@ public class DriverServiceImpl implements DriverService {
 
         Driver updated = driverRepository.save(driver);
 
-        List<Vehicle> assignedVehicles = vehicleRepository.findByAssignedDriverId(id);
+        List<Vehicle> assignedVehicles = vehicleRepository.findByUserEmailIgnoreCaseAndAssignedDriverId(userEmail, id);
         Vehicle assignedVehicle = assignedVehicles.isEmpty() ? null : assignedVehicles.get(0);
 
         return DriverResponse.fromEntity(updated, assignedVehicle);
@@ -160,17 +180,53 @@ public class DriverServiceImpl implements DriverService {
             throw new DriverNotFoundException("Driver ID must not be null");
         }
 
-        Driver driver = driverRepository.findById(id)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Driver driver = findDriverScoped(id, userEmail)
                 .orElseThrow(() -> new DriverNotFoundException(id));
 
         // Unassign any vehicles before deleting driver
-        List<Vehicle> assignedVehicles = vehicleRepository.findByAssignedDriverId(id);
+        List<Vehicle> assignedVehicles = vehicleRepository.findByUserEmailIgnoreCaseAndAssignedDriverId(userEmail, id);
         for (Vehicle v : assignedVehicles) {
             v.setAssignedDriver(null);
             vehicleRepository.save(v);
         }
 
         driverRepository.delete(driver);
+    }
+
+    private Optional<Driver> findDriverScoped(Long id, String userEmail) {
+        Optional<Driver> opt = driverRepository.findByIdAndUserEmailIgnoreCase(id, userEmail);
+        if (opt.isPresent()) {
+            return opt;
+        }
+        Optional<Driver> fallback = driverRepository.findById(id);
+        if (fallback.isPresent() && (fallback.get().getUserEmail() == null || fallback.get().getUserEmail().equalsIgnoreCase(userEmail))) {
+            return fallback;
+        }
+        if (fallback.isPresent() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
+            return fallback;
+        }
+        return Optional.empty();
+    }
+
+    private boolean checkLicenseExists(String licenseNumber, String userEmail) {
+        if (driverRepository.existsByLicenseNumberIgnoreCaseAndUserEmailIgnoreCase(licenseNumber, userEmail)) {
+            return true;
+        }
+        if (driverRepository.existsByLicenseNumberIgnoreCase(licenseNumber) && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean checkLicenseExistsAndIdNot(String licenseNumber, String userEmail, Long id) {
+        if (driverRepository.existsByLicenseNumberIgnoreCaseAndUserEmailIgnoreCaseAndIdNot(licenseNumber, userEmail, id)) {
+            return true;
+        }
+        if (driverRepository.existsByLicenseNumberIgnoreCaseAndIdNot(licenseNumber, id) && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
+            return true;
+        }
+        return false;
     }
 
     private <T> void validate(T object) {

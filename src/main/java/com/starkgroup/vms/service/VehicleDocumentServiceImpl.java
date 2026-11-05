@@ -8,11 +8,13 @@ import com.starkgroup.vms.exception.ResourceNotFoundException;
 import com.starkgroup.vms.exception.VehicleNotFoundException;
 import com.starkgroup.vms.repository.VehicleDocumentRepository;
 import com.starkgroup.vms.repository.VehicleRepository;
+import com.starkgroup.vms.util.SecurityUtils;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
@@ -49,7 +51,8 @@ public class VehicleDocumentServiceImpl implements VehicleDocumentService {
         if (vehicleId == null) {
             throw new VehicleNotFoundException("Vehicle ID must not be null");
         }
-        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Vehicle vehicle = vehicleRepository.findByIdAndUserEmailIgnoreCase(vehicleId, userEmail)
                 .orElseThrow(() -> new VehicleNotFoundException(vehicleId));
 
         validate(request);
@@ -76,9 +79,9 @@ public class VehicleDocumentServiceImpl implements VehicleDocumentService {
         if (vehicleId == null) {
             throw new VehicleNotFoundException("Vehicle ID must not be null");
         }
-        if (!vehicleRepository.existsById(vehicleId)) {
-            throw new VehicleNotFoundException(vehicleId);
-        }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        Vehicle vehicle = vehicleRepository.findByIdAndUserEmailIgnoreCase(vehicleId, userEmail)
+                .orElseThrow(() -> new VehicleNotFoundException(vehicleId));
 
         return documentRepository.findByVehicleIdOrderByExpiryDateAsc(vehicleId).stream()
                 .map(DocumentResponse::fromEntity)
@@ -138,6 +141,39 @@ public class VehicleDocumentServiceImpl implements VehicleDocumentService {
 
         List<VehicleDocument> expired = documentRepository.findTop10ByExpiryDateBeforeOrderByExpiryDateAsc(today);
         List<VehicleDocument> expiringSoon = documentRepository.findTop10ByExpiryDateBetweenOrderByExpiryDateAsc(today, threshold);
+
+        List<DocumentResponse> result = new ArrayList<>();
+        expired.forEach(d -> result.add(DocumentResponse.fromEntity(d)));
+        expiringSoon.forEach(d -> result.add(DocumentResponse.fromEntity(d)));
+
+        if (result.size() > limit) {
+            return result.subList(0, limit);
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countExpiredDocumentsForUser(String userEmail) {
+        return documentRepository.countExpiredByUser(userEmail, LocalDate.now());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countExpiringSoonDocumentsForUser(String userEmail, int days) {
+        LocalDate today = LocalDate.now();
+        LocalDate threshold = today.plusDays(days);
+        return documentRepository.countExpiringSoonByUser(userEmail, today, threshold);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DocumentResponse> getUpcomingExpiriesForUser(String userEmail, int limit) {
+        LocalDate today = LocalDate.now();
+        LocalDate threshold = today.plusDays(30);
+
+        List<VehicleDocument> expired = documentRepository.findExpiredByUser(userEmail, today, PageRequest.of(0, 10));
+        List<VehicleDocument> expiringSoon = documentRepository.findExpiringSoonByUser(userEmail, today, threshold, PageRequest.of(0, 10));
 
         List<DocumentResponse> result = new ArrayList<>();
         expired.forEach(d -> result.add(DocumentResponse.fromEntity(d)));

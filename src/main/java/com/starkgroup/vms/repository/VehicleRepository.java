@@ -15,6 +15,40 @@ import java.util.Optional;
 @Repository
 public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
+    // User-isolated methods
+    List<Vehicle> findAllByUserEmailIgnoreCase(String userEmail);
+
+    Optional<Vehicle> findByIdAndUserEmailIgnoreCase(Long id, String userEmail);
+
+    boolean existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase(String vehicleNumber, String userEmail);
+
+    boolean existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCaseAndIdNot(String vehicleNumber, String userEmail, Long id);
+
+    Optional<Vehicle> findByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase(String vehicleNumber, String userEmail);
+
+    List<Vehicle> findByUserEmailIgnoreCaseAndAssignedDriverId(String userEmail, Long driverId);
+
+    long countByUserEmailIgnoreCase(String userEmail);
+
+    long countByUserEmailIgnoreCaseAndStatus(String userEmail, VehicleStatus status);
+
+    @Query("SELECT v FROM Vehicle v LEFT JOIN v.assignedDriver d WHERE " +
+           "LOWER(v.userEmail) = LOWER(:userEmail) AND " +
+           "(:status IS NULL OR v.status = :status) AND " +
+           "(:company IS NULL OR :company = '' OR :company = 'All Companies' OR v.company = :company) AND " +
+           "(:search IS NULL OR :search = '' OR " +
+           "LOWER(v.vehicleNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(v.brand) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(v.model) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(v.company) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(d IS NOT NULL AND LOWER(d.name) LIKE LOWER(CONCAT('%', :search, '%'))))")
+    Page<Vehicle> searchVehiclesByUser(@Param("userEmail") String userEmail,
+                                       @Param("search") String search,
+                                       @Param("status") VehicleStatus status,
+                                       @Param("company") String company,
+                                       Pageable pageable);
+
+    // Global / fallback methods for tests
     boolean existsByVehicleNumber(String vehicleNumber);
 
     boolean existsByVehicleNumberIgnoreCase(String vehicleNumber);

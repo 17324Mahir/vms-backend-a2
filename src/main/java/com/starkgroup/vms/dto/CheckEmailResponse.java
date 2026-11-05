@@ -9,3 +9,4 @@ public record CheckEmailResponse(
         String message
 ) {
 }
+

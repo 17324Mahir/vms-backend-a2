@@ -28,5 +28,11 @@ public interface MaintenanceService {
     long countTotalMaintenanceRecords();
 
     List<MaintenanceResponse> getRecentMaintenance(int limit);
+
+    BigDecimal getTotalMaintenanceCostForUser(String userEmail);
+
+    long countTotalMaintenanceRecordsForUser(String userEmail);
+
+    List<MaintenanceResponse> getRecentMaintenanceForUser(String userEmail, int limit);
 }
 
