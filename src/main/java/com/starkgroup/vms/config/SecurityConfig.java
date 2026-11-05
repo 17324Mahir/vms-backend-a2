@@ -85,9 +85,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/", "/api").permitAll()
+                .requestMatchers(HttpMethod.HEAD, "/", "/api").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
-                .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                .requestMatchers(HttpMethod.GET, "/actuator/**").permitAll()
+                .requestMatchers(HttpMethod.HEAD, "/actuator/**").permitAll()
                 .requestMatchers("/api/vehicles/**").authenticated()
+                .requestMatchers("/api/drivers/**").authenticated()
+                .requestMatchers("/api/dashboard/**").authenticated()
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
