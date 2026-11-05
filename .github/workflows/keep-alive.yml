@@ -8,17 +8,46 @@ on:
 
 jobs:
   ping:
-    name: Ping Actuator Health
+    name: Ping Backend Health
     runs-on: ubuntu-latest
     steps:
-      - name: Send keep-alive HTTP request
+      - name: Send keep-alive HTTP requests
         run: |
+          echo "=========================================="
           echo "Sending keep-alive ping to Render backend..."
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://vms-backend-i7bt.onrender.com/actuator/health)
-          echo "Backend returned HTTP $HTTP_STATUS at $(date -u)"
-          if [ "$HTTP_STATUS" -eq 200 ]; then
-            echo "SUCCESS: Backend is active and awake."
+          echo "Timestamp: $(date -u)"
+          echo "=========================================="
+          
+          # Target Assignment 2 backend URL
+          URL="https://vms-backend-a2.onrender.com"
+          
+          # 1. Warm up the root endpoint (allows up to 75s with retries for cold starts)
+          echo "Pinging root endpoint: $URL/"
+          STATUS_ROOT=$(curl -s -L -o /dev/null -w "%{http_code}" \
+            --connect-timeout 25 \
+            --max-time 75 \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            "$URL/" || echo "TIMEOUT_OR_ERR")
+          echo "Root endpoint returned: $STATUS_ROOT"
+
+          # 2. Ping Spring Boot Actuator Health
+          echo "Pinging health endpoint: $URL/actuator/health"
+          STATUS_HEALTH=$(curl -s -L -o /dev/null -w "%{http_code}" \
+            --connect-timeout 25 \
+            --max-time 75 \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            "$URL/actuator/health" || echo "TIMEOUT_OR_ERR")
+          echo "Health endpoint returned: $STATUS_HEALTH"
+
+          if [ "$STATUS_ROOT" = "200" ] || [ "$STATUS_HEALTH" = "200" ]; then
+            echo "SUCCESS: Backend is active, awake, and serving traffic."
           else
-            echo "WARNING: Backend returned status $HTTP_STATUS"
+            echo "NOTE: Backend response - Root: $STATUS_ROOT, Health: $STATUS_HEALTH"
           fi
 
+          # Always exit cleanly so transient cold-start delays do not send failure emails
+          exit 0
