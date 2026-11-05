@@ -84,9 +84,9 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/", "/api").permitAll()
+                .requestMatchers(HttpMethod.GET, "/", "/api", "/api/auth/check-email").permitAll()
                 .requestMatchers(HttpMethod.HEAD, "/", "/api").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register", "/api/auth/reset-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/verify-reset-code", "/api/auth/reset-password").permitAll()
                 .requestMatchers(HttpMethod.GET, "/actuator/**").permitAll()
                 .requestMatchers(HttpMethod.HEAD, "/actuator/**").permitAll()
                 .requestMatchers("/api/vehicles/**").authenticated()

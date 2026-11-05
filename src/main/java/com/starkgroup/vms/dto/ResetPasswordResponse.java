@@ -8,3 +8,4 @@ public record ResetPasswordResponse(
         String email
 ) {
 }
+
