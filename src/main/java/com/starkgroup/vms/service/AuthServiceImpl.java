@@ -4,9 +4,12 @@ import com.starkgroup.vms.domain.User;
 import com.starkgroup.vms.dto.LoginRequest;
 import com.starkgroup.vms.dto.LoginResponse;
 import com.starkgroup.vms.dto.RegisterRequest;
+import com.starkgroup.vms.dto.ResetPasswordRequest;
+import com.starkgroup.vms.dto.ResetPasswordResponse;
 import com.starkgroup.vms.dto.UserSummaryDto;
 import com.starkgroup.vms.exception.DuplicateEmailException;
 import com.starkgroup.vms.exception.InvalidCredentialsException;
+import com.starkgroup.vms.exception.ResourceNotFoundException;
 import com.starkgroup.vms.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,5 +114,37 @@ public class AuthServiceImpl implements AuthService {
         // Timing-attack mitigation: compare with dummy hash when user is not found
         passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
         throw new InvalidCredentialsException("Email or password is incorrect.");
+    }
+
+    @Override
+    @Transactional
+    public ResetPasswordResponse resetPassword(ResetPasswordRequest request) {
+        final String rawEmail = request.email() != null
+                ? request.email().trim().toLowerCase(Locale.ROOT)
+                : "";
+        final String rawPassword = request.newPassword() != null
+                ? request.newPassword().trim()
+                : "";
+
+        if (rawEmail.isEmpty() || rawPassword.isEmpty()) {
+            throw new IllegalArgumentException("Email and new password are required.");
+        }
+
+        if (userRepository == null) {
+            throw new IllegalStateException("User repository is unavailable.");
+        }
+
+        User user = userRepository.findByEmailIgnoreCase(rawEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("No account registered with email: " + rawEmail));
+
+        final String encodedPassword = passwordEncoder.encode(rawPassword);
+        user.setPasswordHash(encodedPassword);
+        userRepository.save(user);
+        logger.info("Successfully updated password for account: {}", rawEmail);
+
+        return new ResetPasswordResponse(
+                "Password updated successfully. You may now sign in with your new password.",
+                rawEmail
+        );
     }
 }
