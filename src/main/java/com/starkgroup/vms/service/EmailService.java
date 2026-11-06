@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 /**
  * Service for sending transactional emails (e.g., password reset OTP verification).
- * Gracefully handles environments without active SMTP configurations by logging the OTP code.
  */
 @Service
 public class EmailService {
@@ -35,10 +34,8 @@ public class EmailService {
      * @return true if the email was successfully dispatched via SMTP, false otherwise
      */
     public boolean sendPasswordResetCode(String toEmail, String code) {
-        logger.info("[SECURITY AUDIT] Generated password reset OTP for {}: {}", toEmail, code);
-
         if (mailSender == null) {
-            logger.info("JavaMailSender is not configured; running in fallback mode for {}", toEmail);
+            logger.info("JavaMailSender is not configured for password reset to {}", toEmail);
             return false;
         }
 
@@ -68,8 +65,8 @@ public class EmailService {
             logger.info("Successfully delivered password reset email to {}", toEmail);
             return true;
         } catch (Exception e) {
-            logger.warn("Unable to dispatch email via SMTP to {}: {}. Falling back to demo verification.",
-                    toEmail, e.getMessage());
+            logger.warn("Unable to dispatch password reset email to {} ({})",
+                    toEmail, e.getClass().getSimpleName());
             return false;
         }
     }

@@ -213,6 +213,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
+    @ExceptionHandler(PasswordResetDeliveryException.class)
+    public ResponseEntity<ErrorResponse> handlePasswordResetDeliveryFailure(
+            PasswordResetDeliveryException ex, HttpServletRequest request) {
+        ErrorResponse error = ErrorResponse.of(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "PASSWORD_RESET_DELIVERY_UNAVAILABLE",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+    }
+
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleInvalidCredentials(
             InvalidCredentialsException ex, HttpServletRequest request) {

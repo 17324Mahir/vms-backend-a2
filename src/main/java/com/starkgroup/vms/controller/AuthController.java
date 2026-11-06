@@ -6,7 +6,6 @@ import com.starkgroup.vms.dto.ForgotPasswordResponse;
 import com.starkgroup.vms.dto.LoginRequest;
 import com.starkgroup.vms.dto.LoginResponse;
 import com.starkgroup.vms.dto.RegisterRequest;
-import com.starkgroup.vms.dto.ResetPasswordRequest;
 import com.starkgroup.vms.dto.ResetPasswordResponse;
 import com.starkgroup.vms.dto.VerifyResetCodeRequest;
 import com.starkgroup.vms.service.AuthService;
@@ -79,12 +78,4 @@ public class AuthController {
                 .body(response);
     }
 
-    @PostMapping("/reset-password")
-    public ResponseEntity<ResetPasswordResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
-        ResetPasswordResponse response = authService.resetPassword(request);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, max-age=0")
-                .header(HttpHeaders.PRAGMA, "no-cache")
-                .body(response);
-    }
 }

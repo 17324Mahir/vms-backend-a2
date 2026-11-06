@@ -34,6 +34,24 @@ class UserIsolationIntegrationTest {
     private JwtService jwtService;
 
     @Test
+    void legacyPasswordReset_isDeniedWithAndWithoutAuthentication() throws Exception {
+        String request = """
+                {"email":"private@example.test","newPassword":"SyntheticPassword@123"}
+                """;
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/auth/reset-password")
+                        .header("Authorization", "Bearer " + jwtService.generateToken("other@example.test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("Newly registered user has empty fleet and isolated dashboard, separate from test account")
     void newRegisteredUser_hasEmptyFleetAndIsolatedDashboard() throws Exception {
         String newUserEmail = "brand_new_user_" + System.currentTimeMillis() + "@stark.test";

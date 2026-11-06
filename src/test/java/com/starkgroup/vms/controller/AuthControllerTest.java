@@ -8,6 +8,8 @@ import com.starkgroup.vms.dto.LoginResponse;
 import com.starkgroup.vms.dto.UserSummaryDto;
 import com.starkgroup.vms.exception.GlobalExceptionHandler;
 import com.starkgroup.vms.exception.InvalidCredentialsException;
+import com.starkgroup.vms.exception.PasswordResetDeliveryException;
+import com.starkgroup.vms.util.SecurityUtils;
 import com.starkgroup.vms.service.AuthService;
 import com.starkgroup.vms.service.JwtService;
 import org.junit.jupiter.api.DisplayName;
@@ -110,6 +112,35 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("VALIDATION_FAILED")));
+    }
+
+    @Test
+    void login_normalizesDemoAliasBeforeEmailValidation() throws Exception {
+        String email = SecurityUtils.DEFAULT_USER_EMAIL;
+        LoginResponse response = new LoginResponse("demo.signed.token", "Bearer", 900L, new UserSummaryDto(email));
+        when(authService.login(new LoginRequest(email, "demo-password"))).thenReturn(response);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"DEMO","password":"demo-password"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.email", is(email)));
+    }
+
+    @Test
+    void forgotPassword_whenDeliveryFails_returnsRetryableErrorWithoutOtp() throws Exception {
+        when(authService.forgotPassword(any())).thenThrow(new PasswordResetDeliveryException());
+
+        mockMvc.perform(post("/api/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"learner@example.test"}
+                                """))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code", is("PASSWORD_RESET_DELIVERY_UNAVAILABLE")))
+                .andExpect(jsonPath("$.demoOtp").doesNotExist());
     }
 
     @Test

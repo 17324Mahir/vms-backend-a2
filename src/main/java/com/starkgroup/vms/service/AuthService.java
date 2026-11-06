@@ -6,7 +6,6 @@ import com.starkgroup.vms.dto.ForgotPasswordResponse;
 import com.starkgroup.vms.dto.LoginRequest;
 import com.starkgroup.vms.dto.LoginResponse;
 import com.starkgroup.vms.dto.RegisterRequest;
-import com.starkgroup.vms.dto.ResetPasswordRequest;
 import com.starkgroup.vms.dto.ResetPasswordResponse;
 import com.starkgroup.vms.dto.VerifyResetCodeRequest;
 
@@ -23,6 +22,4 @@ public interface AuthService {
     ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request);
 
     ResetPasswordResponse verifyResetCode(VerifyResetCodeRequest request);
-
-    ResetPasswordResponse resetPassword(ResetPasswordRequest request);
 }

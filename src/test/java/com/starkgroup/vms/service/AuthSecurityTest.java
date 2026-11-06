@@ -1,14 +1,18 @@
 package com.starkgroup.vms.service;
 
 import com.starkgroup.vms.domain.User;
+import com.starkgroup.vms.dto.ForgotPasswordRequest;
 import com.starkgroup.vms.dto.LoginRequest;
 import com.starkgroup.vms.dto.LoginResponse;
 import com.starkgroup.vms.exception.InvalidCredentialsException;
+import com.starkgroup.vms.exception.PasswordResetDeliveryException;
 import com.starkgroup.vms.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -96,6 +100,47 @@ class AuthSecurityTest {
 
         assertNotNull(response);
         assertEquals(TEST_EMAIL, response.user().email());
+    }
+
+    @Test
+    void forgotPassword_doesNotExposeOtpWhenMailDeliveryFailsByDefault() {
+        assertThrows(PasswordResetDeliveryException.class,
+                () -> authService.forgotPassword(new ForgotPasswordRequest(TEST_EMAIL)));
+    }
+
+    @Test
+    void forgotPassword_demoCodeRequiresOptInAndSyntheticEmail() {
+        ReflectionTestUtils.setField(authService, "demoOtpEnabled", true);
+        var demoResponse = authService.forgotPassword(new ForgotPasswordRequest(TEST_EMAIL));
+        assertFalse(demoResponse.emailSent());
+        assertTrue(demoResponse.demoOtp().matches("[0-9]{6}"));
+
+        String ordinaryEmail = "learner@example.com";
+        User ordinaryUser = new User("Learner", ordinaryEmail, "test-hash", "USER");
+        when(userRepository.findByEmailIgnoreCase(ordinaryEmail)).thenReturn(Optional.of(ordinaryUser));
+        assertThrows(PasswordResetDeliveryException.class,
+                () -> authService.forgotPassword(new ForgotPasswordRequest(ordinaryEmail)));
+    }
+
+    @Test
+    void forgotPassword_deliveredOtpIsNeverReturned() {
+        var deliveredMessage = new java.util.concurrent.atomic.AtomicReference<SimpleMailMessage>();
+        var mailSender = new JavaMailSenderImpl() {
+            @Override
+            public void send(SimpleMailMessage message) {
+                deliveredMessage.set(message);
+            }
+        };
+        var email = new EmailService(mailSender);
+        ReflectionTestUtils.setField(email, "fromAddress", "no-reply@example.test");
+        var service = new AuthServiceImpl(passwordEncoder, jwtService, userRepository, null, email);
+        ReflectionTestUtils.setField(service, "demoOtpEnabled", true);
+
+        var response = service.forgotPassword(new ForgotPasswordRequest(TEST_EMAIL));
+
+        assertTrue(response.emailSent());
+        assertNull(response.demoOtp());
+        assertArrayEquals(new String[] {TEST_EMAIL}, deliveredMessage.get().getTo());
     }
 
     @Test

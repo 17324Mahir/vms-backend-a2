@@ -8,18 +8,20 @@ import com.starkgroup.vms.dto.ForgotPasswordResponse;
 import com.starkgroup.vms.dto.LoginRequest;
 import com.starkgroup.vms.dto.LoginResponse;
 import com.starkgroup.vms.dto.RegisterRequest;
-import com.starkgroup.vms.dto.ResetPasswordRequest;
 import com.starkgroup.vms.dto.ResetPasswordResponse;
 import com.starkgroup.vms.dto.UserSummaryDto;
 import com.starkgroup.vms.dto.VerifyResetCodeRequest;
 import com.starkgroup.vms.exception.DuplicateEmailException;
 import com.starkgroup.vms.exception.InvalidCredentialsException;
+import com.starkgroup.vms.exception.PasswordResetDeliveryException;
 import com.starkgroup.vms.exception.ResourceNotFoundException;
 import com.starkgroup.vms.repository.PasswordResetTokenRepository;
 import com.starkgroup.vms.repository.UserRepository;
+import com.starkgroup.vms.util.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +50,9 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordResetTokenRepository tokenRepository;
     private final EmailService emailService;
     private final SecureRandom secureRandom = new SecureRandom();
+
+    @Value("${app.auth.demo-otp-enabled:false}")
+    private boolean demoOtpEnabled;
 
     @Autowired
     public AuthServiceImpl(
@@ -114,11 +119,6 @@ public class AuthServiceImpl implements AuthService {
                 ? request.email().trim().toLowerCase(Locale.ROOT)
                 : "";
 
-        // Normalize demo aliases
-        if ("test".equals(inputEmail) || "admin".equals(inputEmail) || "demo".equals(inputEmail)) {
-            inputEmail = "test@starkgroup.test";
-        }
-
         // Verify user against database user repository
         if (userRepository != null) {
             Optional<User> userOpt = userRepository.findByEmailIgnoreCase(inputEmail);
@@ -126,7 +126,7 @@ public class AuthServiceImpl implements AuthService {
                 User user = userOpt.get();
                 boolean passwordMatches = passwordEncoder.matches(request.password(), user.getPasswordHash());
                 // Also accept "test" as password for the demo course account
-                if (!passwordMatches && "test@starkgroup.test".equalsIgnoreCase(user.getEmail()) && "test".equalsIgnoreCase(request.password())) {
+                if (!passwordMatches && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(user.getEmail()) && "test".equalsIgnoreCase(request.password())) {
                     passwordMatches = true;
                 }
                 if (passwordMatches) {
@@ -147,38 +147,6 @@ public class AuthServiceImpl implements AuthService {
         // Timing-attack mitigation: compare with dummy hash when user is not found
         passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
         throw new InvalidCredentialsException("Email or password is incorrect.");
-    }
-
-    @Override
-    @Transactional
-    public ResetPasswordResponse resetPassword(ResetPasswordRequest request) {
-        final String rawEmail = request.email() != null
-                ? request.email().trim().toLowerCase(Locale.ROOT)
-                : "";
-        final String rawPassword = request.newPassword() != null
-                ? request.newPassword().trim()
-                : "";
-
-        if (rawEmail.isEmpty() || rawPassword.isEmpty()) {
-            throw new IllegalArgumentException("Email and new password are required.");
-        }
-
-        if (userRepository == null) {
-            throw new IllegalStateException("User repository is unavailable.");
-        }
-
-        User user = userRepository.findByEmailIgnoreCase(rawEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("No account registered with email: " + rawEmail));
-
-        final String encodedPassword = passwordEncoder.encode(rawPassword);
-        user.setPasswordHash(encodedPassword);
-        userRepository.save(user);
-        logger.info("Successfully updated password for account: {}", rawEmail);
-
-        return new ResetPasswordResponse(
-                "Password updated successfully. You may now sign in with your new password.",
-                rawEmail
-        );
     }
 
     @Override
@@ -233,9 +201,14 @@ public class AuthServiceImpl implements AuthService {
         // Send OTP verification code to user's email inbox
         final boolean emailSent = emailService.sendPasswordResetCode(rawEmail, otpCode);
 
+        final boolean localDemo = demoOtpEnabled && rawEmail.endsWith(".test");
+        if (!emailSent && !localDemo) {
+            throw new PasswordResetDeliveryException();
+        }
+
         final String message = emailSent
                 ? "A 6-digit verification code has been sent to " + rawEmail + ". Please check your inbox."
-                : "A 6-digit verification code has been generated. In demo mode, your code is: " + otpCode;
+                : "Use the demo verification code displayed below.";
 
         logger.info("Password reset code generated for {}. Dispatched via email: {}", rawEmail, emailSent);
 
