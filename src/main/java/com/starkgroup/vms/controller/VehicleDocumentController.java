@@ -37,6 +37,15 @@ public class VehicleDocumentController {
         return ResponseEntity.created(location).body(created);
     }
 
+    @PutMapping("/{docId}")
+    public ResponseEntity<DocumentResponse> updateDocument(
+            @PathVariable("vehicleId") @Positive(message = "Vehicle ID must be a positive number") Long vehicleId,
+            @PathVariable("docId") @Positive(message = "Document ID must be a positive number") Long docId,
+            @Valid @RequestBody CreateDocumentRequest request) {
+        DocumentResponse updated = documentService.updateDocument(vehicleId, docId, request);
+        return ResponseEntity.ok(updated);
+    }
+
     @GetMapping
     public ResponseEntity<List<DocumentResponse>> getDocumentsForVehicle(
             @PathVariable("vehicleId") @Positive(message = "Vehicle ID must be a positive number") Long vehicleId) {

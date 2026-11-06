@@ -72,7 +72,7 @@ class VehicleApiIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    private final String testUserEmail = "test@starkgroup.test";
+    private final String testUserEmail = "it-test-user@starkgroup.test";
 
     // Synthetic test password for isolated integration testing
     private static final String TEST_USER_PASSWORD = "SyntheticTestPassword@123";

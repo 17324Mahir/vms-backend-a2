@@ -74,6 +74,47 @@ public class VehicleDocumentServiceImpl implements VehicleDocumentService {
     }
 
     @Override
+    @Transactional
+    public DocumentResponse updateDocument(Long vehicleId, Long documentId, CreateDocumentRequest request) {
+        if (vehicleId == null) {
+            throw new VehicleNotFoundException("Vehicle ID must not be null");
+        }
+        if (documentId == null) {
+            throw new ResourceNotFoundException("Document ID must not be null");
+        }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        vehicleRepository.findByIdAndUserEmailIgnoreCase(vehicleId, userEmail)
+                .orElseThrow(() -> new VehicleNotFoundException(vehicleId));
+
+        VehicleDocument doc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+
+        if (!doc.getVehicle().getId().equals(vehicleId)) {
+            throw new IllegalArgumentException("Document does not belong to the specified vehicle");
+        }
+
+        validate(request);
+
+        doc.setDocumentType(request.getDocumentType());
+        doc.setDocumentNumber(request.getDocumentNumber() != null ? request.getDocumentNumber().trim() : null);
+        doc.setIssueDate(request.getIssueDate());
+        doc.setExpiryDate(request.getExpiryDate());
+        if (request.getFileName() != null) {
+            doc.setFileName(request.getFileName().trim());
+        }
+        if (request.getFileType() != null) {
+            doc.setFileType(request.getFileType().trim());
+        }
+        if (request.getFileData() != null) {
+            doc.setFileData(request.getFileData());
+        }
+        doc.setNotes(request.getNotes() != null ? request.getNotes().trim() : null);
+
+        VehicleDocument saved = documentRepository.save(doc);
+        return DocumentResponse.fromEntity(saved);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getDocumentsForVehicle(Long vehicleId) {
         if (vehicleId == null) {

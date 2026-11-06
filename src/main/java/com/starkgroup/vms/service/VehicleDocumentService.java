@@ -11,6 +11,8 @@ public interface VehicleDocumentService {
 
     DocumentResponse uploadDocument(@NotNull Long vehicleId, @Valid @NotNull CreateDocumentRequest request);
 
+    DocumentResponse updateDocument(@NotNull Long vehicleId, @NotNull Long documentId, @Valid @NotNull CreateDocumentRequest request);
+
     List<DocumentResponse> getDocumentsForVehicle(@NotNull Long vehicleId);
 
     DocumentResponse getDocumentById(@NotNull Long documentId);
