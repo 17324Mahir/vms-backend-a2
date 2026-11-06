@@ -18,6 +18,9 @@ public interface VehicleDocumentRepository extends JpaRepository<VehicleDocument
     List<VehicleDocument> findByVehicleId(Long vehicleId);
 
     // User-isolated methods
+    @Query("SELECT d FROM VehicleDocument d WHERE LOWER(d.vehicle.userEmail) = LOWER(:userEmail) ORDER BY d.expiryDate ASC")
+    List<VehicleDocument> findAllByUserEmailOrderByExpiryDateAsc(@Param("userEmail") String userEmail);
+
     @Query("SELECT COUNT(d) FROM VehicleDocument d WHERE LOWER(d.vehicle.userEmail) = LOWER(:userEmail)")
     long countByUserEmail(@Param("userEmail") String userEmail);
 

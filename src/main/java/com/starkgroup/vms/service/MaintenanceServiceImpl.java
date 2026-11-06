@@ -95,6 +95,15 @@ public class MaintenanceServiceImpl implements MaintenanceService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<MaintenanceResponse> getAllMaintenanceForCurrentUser() {
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        return maintenanceRepository.findAllByUserEmailOrderByMaintenanceDateDesc(userEmail).stream()
+                .map(MaintenanceResponse::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public MaintenanceResponse getMaintenanceById(Long maintenanceId) {
         if (maintenanceId == null) {
             throw new ResourceNotFoundException("Maintenance ID must not be null");

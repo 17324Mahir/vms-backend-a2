@@ -15,6 +15,8 @@ public interface VehicleDocumentService {
 
     List<DocumentResponse> getDocumentsForVehicle(@NotNull Long vehicleId);
 
+    List<DocumentResponse> getAllDocumentsForCurrentUser();
+
     DocumentResponse getDocumentById(@NotNull Long documentId);
 
     void deleteDocument(@NotNull Long vehicleId, @NotNull Long documentId);

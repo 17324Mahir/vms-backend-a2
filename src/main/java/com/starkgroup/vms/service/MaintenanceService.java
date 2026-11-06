@@ -15,6 +15,8 @@ public interface MaintenanceService {
 
     List<MaintenanceResponse> getMaintenanceHistoryForVehicle(@NotNull Long vehicleId);
 
+    List<MaintenanceResponse> getAllMaintenanceForCurrentUser();
+
     MaintenanceResponse getMaintenanceById(@NotNull Long maintenanceId);
 
     MaintenanceResponse updateMaintenance(@NotNull Long vehicleId, @NotNull Long maintenanceId, @Valid @NotNull UpdateMaintenanceRequest request);

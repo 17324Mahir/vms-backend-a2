@@ -20,6 +20,9 @@ public interface MaintenanceRecordRepository extends JpaRepository<MaintenanceRe
     Page<MaintenanceRecord> findByVehicleId(Long vehicleId, Pageable pageable);
 
     // User-isolated methods
+    @Query("SELECT m FROM MaintenanceRecord m WHERE LOWER(m.vehicle.userEmail) = LOWER(:userEmail) ORDER BY m.maintenanceDate DESC")
+    List<MaintenanceRecord> findAllByUserEmailOrderByMaintenanceDateDesc(@Param("userEmail") String userEmail);
+
     @Query("SELECT COALESCE(SUM(m.cost), 0) FROM MaintenanceRecord m WHERE LOWER(m.vehicle.userEmail) = LOWER(:userEmail)")
     BigDecimal calculateTotalMaintenanceCostByUser(@Param("userEmail") String userEmail);
 

@@ -59,6 +59,29 @@ public class VehicleDocumentController {
         return ResponseEntity.ok(documentService.getDocumentById(docId));
     }
 
+    @GetMapping("/{docId}/download")
+    public ResponseEntity<byte[]> downloadDocumentFile(
+            @PathVariable("vehicleId") @Positive(message = "Vehicle ID must be a positive number") Long vehicleId,
+            @PathVariable("docId") @Positive(message = "Document ID must be a positive number") Long docId) {
+        DocumentResponse doc = documentService.getDocumentById(docId);
+        if (doc.getFileData() == null || doc.getFileData().isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        byte[] bytes = java.util.Base64.getDecoder().decode(doc.getFileData());
+        String filename = doc.getFileName() != null ? doc.getFileName() : "document-" + docId;
+        String contentType = "application/octet-stream";
+        if (doc.getFileType() != null) {
+            String ext = doc.getFileType().toLowerCase();
+            if (ext.equals("pdf")) contentType = "application/pdf";
+            else if (ext.equals("png")) contentType = "image/png";
+            else if (ext.equals("jpg") || ext.equals("jpeg")) contentType = "image/jpeg";
+        }
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
+                .body(bytes);
+    }
+
     @DeleteMapping("/{docId}")
     public ResponseEntity<Void> deleteDocument(
             @PathVariable("vehicleId") @Positive(message = "Vehicle ID must be a positive number") Long vehicleId,

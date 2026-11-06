@@ -131,13 +131,22 @@ public class VehicleDocumentServiceImpl implements VehicleDocumentService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<DocumentResponse> getAllDocumentsForCurrentUser() {
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        return documentRepository.findAllByUserEmailOrderByExpiryDateAsc(userEmail).stream()
+                .map(DocumentResponse::fromEntity)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public DocumentResponse getDocumentById(Long documentId) {
         if (documentId == null) {
             throw new ResourceNotFoundException("Document ID must not be null");
         }
         VehicleDocument doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
-        return DocumentResponse.fromEntity(doc);
+        return DocumentResponse.fromEntity(doc, true);
     }
 
     @Override
