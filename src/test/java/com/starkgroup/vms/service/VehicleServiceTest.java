@@ -8,6 +8,7 @@ import com.starkgroup.vms.dto.VehicleResponse;
 import com.starkgroup.vms.exception.DuplicateVehicleNumberException;
 import com.starkgroup.vms.exception.VehicleNotFoundException;
 import com.starkgroup.vms.repository.VehicleRepository;
+import com.starkgroup.vms.util.SecurityUtils;
 import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -54,7 +55,7 @@ class VehicleServiceTest {
                 VehicleStatus.ACTIVE
         );
 
-        when(vehicleRepository.existsByVehicleNumber("STK-9001")).thenReturn(true);
+        when(vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase("STK-9001", SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(true);
 
         // Act & Assert
         DuplicateVehicleNumberException ex = assertThrows(DuplicateVehicleNumberException.class,
@@ -78,7 +79,7 @@ class VehicleServiceTest {
                 VehicleStatus.ACTIVE
         );
 
-        when(vehicleRepository.existsByVehicleNumber("STK-9002")).thenReturn(false);
+        when(vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase("STK-9002", SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(false);
         when(vehicleRepository.saveAndFlush(any(Vehicle.class))).thenAnswer(invocation -> {
             Vehicle toSave = invocation.getArgument(0);
             return new Vehicle(
@@ -124,14 +125,14 @@ class VehicleServiceTest {
                 VehicleStatus.ACTIVE
         );
 
-        when(vehicleRepository.existsByVehicleNumber("STK-9001")).thenReturn(true);
+        when(vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase("STK-9001", SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(true);
 
         // Act & Assert
         DuplicateVehicleNumberException ex = assertThrows(DuplicateVehicleNumberException.class,
                 () -> vehicleService.createVehicle(request));
 
         assertEquals("A vehicle with this Vehicle Number already exists.", ex.getMessage());
-        verify(vehicleRepository).existsByVehicleNumber("STK-9001");
+        verify(vehicleRepository).existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase("STK-9001", SecurityUtils.DEFAULT_USER_EMAIL);
         verify(vehicleRepository, never()).saveAndFlush(any());
         verify(vehicleRepository, never()).save(any());
     }
@@ -174,7 +175,7 @@ class VehicleServiceTest {
                 VehicleStatus.ACTIVE
         );
 
-        when(vehicleRepository.existsByVehicleNumber("SG-1001")).thenReturn(false);
+        when(vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase("SG-1001", SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(false);
 
         DataIntegrityViolationException dbException = new DataIntegrityViolationException(
                 "could not execute statement",
@@ -206,7 +207,7 @@ class VehicleServiceTest {
                 VehicleStatus.ACTIVE
         );
 
-        when(vehicleRepository.existsByVehicleNumber("SG-1001")).thenReturn(false);
+        when(vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase("SG-1001", SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(false);
 
         DataIntegrityViolationException unrelatedException = new DataIntegrityViolationException(
                 "check constraint violated",
@@ -242,8 +243,8 @@ class VehicleServiceTest {
                 VehicleStatus.MAINTENANCE
         );
 
-        when(vehicleRepository.findById(vehicleId)).thenReturn(Optional.of(existing));
-        when(vehicleRepository.existsByVehicleNumberAndIdNot("SG-1001", vehicleId)).thenReturn(false);
+        when(vehicleRepository.findByIdAndUserEmailIgnoreCase(vehicleId, SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(Optional.of(existing));
+        when(vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCaseAndIdNot("SG-1001", SecurityUtils.DEFAULT_USER_EMAIL, vehicleId)).thenReturn(false);
         when(vehicleRepository.saveAndFlush(any(Vehicle.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         VehicleResponse updated = vehicleService.updateVehicle(vehicleId, request);
@@ -272,8 +273,8 @@ class VehicleServiceTest {
                 VehicleStatus.ACTIVE
         );
 
-        when(vehicleRepository.findById(vehicleId)).thenReturn(Optional.of(existing));
-        when(vehicleRepository.existsByVehicleNumberAndIdNot("SG-9999", vehicleId)).thenReturn(true);
+        when(vehicleRepository.findByIdAndUserEmailIgnoreCase(vehicleId, SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(Optional.of(existing));
+        when(vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCaseAndIdNot("SG-9999", SecurityUtils.DEFAULT_USER_EMAIL, vehicleId)).thenReturn(true);
 
         DuplicateVehicleNumberException ex = assertThrows(DuplicateVehicleNumberException.class,
                 () -> vehicleService.updateVehicle(vehicleId, request));
@@ -289,7 +290,7 @@ class VehicleServiceTest {
         UpdateVehicleRequest request = new UpdateVehicleRequest(
                 "SG-1001", "Stark Industries", "Sedan", "Tesla", "Model S", VehicleStatus.ACTIVE);
 
-        when(vehicleRepository.findById(unknownId)).thenReturn(Optional.empty());
+        when(vehicleRepository.findByIdAndUserEmailIgnoreCase(unknownId, SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(Optional.empty());
 
         assertThrows(VehicleNotFoundException.class, () -> vehicleService.updateVehicle(unknownId, request));
     }
@@ -300,7 +301,7 @@ class VehicleServiceTest {
     @DisplayName("Retrieving existing vehicle by ID returns response DTO")
     void getVehicleById_withExistingId_returnsDto() {
         Vehicle vehicle = new Vehicle(1L, "SG-1001", "Stark Industries", "Sedan", "Tesla", "Model S", VehicleStatus.ACTIVE);
-        when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
+        when(vehicleRepository.findByIdAndUserEmailIgnoreCase(1L, SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(Optional.of(vehicle));
 
         VehicleResponse response = vehicleService.getVehicleById(1L);
 
@@ -311,7 +312,7 @@ class VehicleServiceTest {
     @Test
     @DisplayName("Retrieving unknown vehicle ID throws VehicleNotFoundException")
     void getVehicleById_withUnknownId_throwsVehicleNotFoundException() {
-        when(vehicleRepository.findById(999L)).thenReturn(Optional.empty());
+        when(vehicleRepository.findByIdAndUserEmailIgnoreCase(999L, SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(Optional.empty());
 
         assertThrows(VehicleNotFoundException.class, () -> vehicleService.getVehicleById(999L));
     }
@@ -323,7 +324,7 @@ class VehicleServiceTest {
                 new Vehicle(1L, "SG-1001", "Stark Industries", "Sedan", "Tesla", "Model S", VehicleStatus.ACTIVE),
                 new Vehicle(2L, "SG-1002", "Stark Logistics", "Van", "Ford", "Transit", VehicleStatus.MAINTENANCE)
         );
-        when(vehicleRepository.findAll()).thenReturn(list);
+        when(vehicleRepository.findAllByUserEmailIgnoreCase(SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(list);
 
         List<VehicleResponse> responses = vehicleService.getAllVehicles();
 
@@ -336,7 +337,7 @@ class VehicleServiceTest {
     @DisplayName("Deleting an existing vehicle deletes the record")
     void deleteVehicle_withExistingId_deletesVehicle() {
         Vehicle vehicle = new Vehicle(1L, "SG-1001", "Stark Industries", "Sedan", "Tesla", "Model S", VehicleStatus.ACTIVE);
-        when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
+        when(vehicleRepository.findByIdAndUserEmailIgnoreCase(1L, SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(Optional.of(vehicle));
 
         vehicleService.deleteVehicle(1L);
 
@@ -346,7 +347,7 @@ class VehicleServiceTest {
     @Test
     @DisplayName("Deleting an unknown vehicle ID throws VehicleNotFoundException")
     void deleteVehicle_withUnknownId_throwsVehicleNotFoundException() {
-        when(vehicleRepository.findById(999L)).thenReturn(Optional.empty());
+        when(vehicleRepository.findByIdAndUserEmailIgnoreCase(999L, SecurityUtils.DEFAULT_USER_EMAIL)).thenReturn(Optional.empty());
 
         assertThrows(VehicleNotFoundException.class, () -> vehicleService.deleteVehicle(999L));
         verify(vehicleRepository, never()).delete(any());

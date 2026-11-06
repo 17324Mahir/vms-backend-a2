@@ -122,14 +122,15 @@ public class VehicleServiceImpl implements VehicleService {
     public List<VehicleResponse> getAllVehicles() {
         String userEmail = SecurityUtils.getCurrentUserEmail();
         List<Vehicle> list = vehicleRepository.findAllByUserEmailIgnoreCase(userEmail);
-        if (list.isEmpty() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
-            list = vehicleRepository.findAll().stream()
-                    .filter(v -> v.getUserEmail() == null || v.getUserEmail().equalsIgnoreCase(userEmail))
-                    .toList();
-        }
         return list.stream()
                 .map(this::toDetailedResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> getVehicleCompanies() {
+        return vehicleRepository.findCompaniesByUser(SecurityUtils.getCurrentUserEmail());
     }
 
     @Override
@@ -293,54 +294,20 @@ public class VehicleServiceImpl implements VehicleService {
     }
 
     private Optional<Vehicle> findVehicleScoped(Long id, String userEmail) {
-        Optional<Vehicle> opt = vehicleRepository.findByIdAndUserEmailIgnoreCase(id, userEmail);
-        if (opt.isPresent()) {
-            return opt;
-        }
-        Optional<Vehicle> fallback = vehicleRepository.findById(id);
-        if (fallback.isPresent() && (fallback.get().getUserEmail() == null || fallback.get().getUserEmail().equalsIgnoreCase(userEmail))) {
-            return fallback;
-        }
-        if (fallback.isPresent() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
-            return fallback;
-        }
-        return Optional.empty();
+        return vehicleRepository.findByIdAndUserEmailIgnoreCase(id, userEmail);
     }
 
     private Optional<Driver> findDriverScoped(Long id, String userEmail) {
         if (driverRepository == null) return Optional.empty();
-        Optional<Driver> opt = driverRepository.findByIdAndUserEmailIgnoreCase(id, userEmail);
-        if (opt.isPresent()) {
-            return opt;
-        }
-        Optional<Driver> fallback = driverRepository.findById(id);
-        if (fallback.isPresent() && (fallback.get().getUserEmail() == null || fallback.get().getUserEmail().equalsIgnoreCase(userEmail))) {
-            return fallback;
-        }
-        if (fallback.isPresent() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
-            return fallback;
-        }
-        return Optional.empty();
+        return driverRepository.findByIdAndUserEmailIgnoreCase(id, userEmail);
     }
 
     private boolean checkVehicleNumberExists(String vehicleNumber, String userEmail) {
-        if (vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase(vehicleNumber, userEmail)) {
-            return true;
-        }
-        if (vehicleRepository.existsByVehicleNumber(vehicleNumber) && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
-            return true;
-        }
-        return false;
+        return vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase(vehicleNumber, userEmail);
     }
 
     private boolean checkVehicleNumberExistsAndIdNot(String vehicleNumber, String userEmail, Long id) {
-        if (vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCaseAndIdNot(vehicleNumber, userEmail, id)) {
-            return true;
-        }
-        if (vehicleRepository.existsByVehicleNumberAndIdNot(vehicleNumber, id) && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
-            return true;
-        }
-        return false;
+        return vehicleRepository.existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCaseAndIdNot(vehicleNumber, userEmail, id);
     }
 
     private void updateDriverStatusIfNoOtherVehicles(Long driverId, String userEmail) {

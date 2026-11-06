@@ -61,10 +61,18 @@ public class VehicleController {
         int pageNum = page != null ? Math.max(page, 0) : 0;
         int pageSize = size != null ? Math.max(size, 1) : 10;
         Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+        if (!sortBy.equals("id")) {
+            sort = sort.and(Sort.by("id"));
+        }
         Pageable pageable = PageRequest.of(pageNum, pageSize, sort);
 
         PageResponse<VehicleResponse> result = vehicleService.searchVehicles(search, status, company, pageable);
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/companies")
+    public List<String> getVehicleCompanies() {
+        return vehicleService.getVehicleCompanies();
     }
 
     @GetMapping("/{id}")

@@ -2,8 +2,10 @@ package com.starkgroup.vms.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.starkgroup.vms.domain.VehicleStatus;
+import com.starkgroup.vms.dto.CreateDriverRequest;
 import com.starkgroup.vms.dto.CreateVehicleRequest;
 import com.starkgroup.vms.service.JwtService;
+import com.starkgroup.vms.util.SecurityUtils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,12 +65,13 @@ class UserIsolationIntegrationTest {
                 VehicleStatus.ACTIVE
         );
 
-        mockMvc.perform(post("/api/vehicles")
+        String location = mockMvc.perform(post("/api/vehicles")
                         .header("Authorization", newUserToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.vehicleNumber", is("USER-ISOLATE-101")));
+                .andExpect(jsonPath("$.vehicleNumber", is("USER-ISOLATE-101")))
+                .andReturn().getResponse().getHeader("Location");
 
         // 4. New user now sees their 1 vehicle and updated dashboard
         mockMvc.perform(get("/api/vehicles")
@@ -84,10 +87,36 @@ class UserIsolationIntegrationTest {
                 .andExpect(jsonPath("$.activeVehicles", is(1)));
 
         // 5. Test account does NOT see the new user's vehicle
-        String testUserToken = "Bearer " + jwtService.generateToken("test@starkgroup.test");
+        String testUserToken = "Bearer " + jwtService.generateToken(SecurityUtils.DEFAULT_USER_EMAIL);
         mockMvc.perform(get("/api/vehicles")
                         .header("Authorization", testUserToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].vehicleNumber", not(hasItem("USER-ISOLATE-101"))));
+        mockMvc.perform(get(location).header("Authorization", testUserToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/vehicles/companies").header("Authorization", newUserToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", contains("New User Logistics")));
+        mockMvc.perform(get("/api/vehicles/companies").header("Authorization", testUserToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", not(hasItem("New User Logistics"))));
+
+        CreateDriverRequest driverRequest = new CreateDriverRequest();
+        driverRequest.setName("Private Test Driver");
+        driverRequest.setLicenseNumber("PRIVATE-DRIVER-1");
+        driverRequest.setPhone("01000000001");
+        String driver = mockMvc.perform(post("/api/drivers")
+                        .header("Authorization", newUserToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(driverRequest)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long driverId = objectMapper.readTree(driver).path("id").asLong();
+        mockMvc.perform(get("/api/drivers/{id}", driverId).header("Authorization", testUserToken))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/drivers/available").header("Authorization", testUserToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].name", not(hasItem("Private Test Driver"))));
     }
 }

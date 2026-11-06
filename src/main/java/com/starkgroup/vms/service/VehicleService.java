@@ -19,6 +19,8 @@ public interface VehicleService {
 
     List<VehicleResponse> getAllVehicles();
 
+    List<String> getVehicleCompanies();
+
     PageResponse<VehicleResponse> searchVehicles(String search, VehicleStatus status, String company, Pageable pageable);
 
     VehicleResponse updateVehicle(@NotNull Long id, @Valid @NotNull UpdateVehicleRequest request);

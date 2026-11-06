@@ -18,6 +18,13 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     // User-isolated methods
     List<Vehicle> findAllByUserEmailIgnoreCase(String userEmail);
 
+    @Query("""
+            SELECT DISTINCT v.company FROM Vehicle v
+            WHERE LOWER(v.userEmail) = LOWER(:userEmail)
+            ORDER BY v.company
+            """)
+    List<String> findCompaniesByUser(@Param("userEmail") String userEmail);
+
     Optional<Vehicle> findByIdAndUserEmailIgnoreCase(Long id, String userEmail);
 
     boolean existsByVehicleNumberIgnoreCaseAndUserEmailIgnoreCase(String vehicleNumber, String userEmail);

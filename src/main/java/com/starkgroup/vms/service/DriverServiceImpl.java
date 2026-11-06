@@ -95,11 +95,6 @@ public class DriverServiceImpl implements DriverService {
     public List<DriverResponse> getAllDrivers() {
         String userEmail = SecurityUtils.getCurrentUserEmail();
         List<Driver> drivers = driverRepository.findAllByUserEmailIgnoreCase(userEmail);
-        if (drivers.isEmpty() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
-            drivers = driverRepository.findAll().stream()
-                    .filter(d -> d.getUserEmail() == null || d.getUserEmail().equalsIgnoreCase(userEmail))
-                    .toList();
-        }
 
         Map<Long, Vehicle> driverToVehicleMap = vehicleRepository.findAllByUserEmailIgnoreCase(userEmail).stream()
                 .filter(v -> v.getAssignedDriver() != null)
@@ -115,9 +110,6 @@ public class DriverServiceImpl implements DriverService {
     public List<DriverSummaryDto> getAvailableDrivers() {
         String userEmail = SecurityUtils.getCurrentUserEmail();
         List<Driver> drivers = driverRepository.findByUserEmailIgnoreCaseAndStatus(userEmail, DriverStatus.AVAILABLE);
-        if (drivers.isEmpty() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
-            drivers = driverRepository.findByStatus(DriverStatus.AVAILABLE);
-        }
         return drivers.stream()
                 .map(DriverSummaryDto::fromEntity)
                 .toList();
@@ -195,38 +187,15 @@ public class DriverServiceImpl implements DriverService {
     }
 
     private Optional<Driver> findDriverScoped(Long id, String userEmail) {
-        Optional<Driver> opt = driverRepository.findByIdAndUserEmailIgnoreCase(id, userEmail);
-        if (opt.isPresent()) {
-            return opt;
-        }
-        Optional<Driver> fallback = driverRepository.findById(id);
-        if (fallback.isPresent() && (fallback.get().getUserEmail() == null || fallback.get().getUserEmail().equalsIgnoreCase(userEmail))) {
-            return fallback;
-        }
-        if (fallback.isPresent() && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
-            return fallback;
-        }
-        return Optional.empty();
+        return driverRepository.findByIdAndUserEmailIgnoreCase(id, userEmail);
     }
 
     private boolean checkLicenseExists(String licenseNumber, String userEmail) {
-        if (driverRepository.existsByLicenseNumberIgnoreCaseAndUserEmailIgnoreCase(licenseNumber, userEmail)) {
-            return true;
-        }
-        if (driverRepository.existsByLicenseNumberIgnoreCase(licenseNumber) && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
-            return true;
-        }
-        return false;
+        return driverRepository.existsByLicenseNumberIgnoreCaseAndUserEmailIgnoreCase(licenseNumber, userEmail);
     }
 
     private boolean checkLicenseExistsAndIdNot(String licenseNumber, String userEmail, Long id) {
-        if (driverRepository.existsByLicenseNumberIgnoreCaseAndUserEmailIgnoreCaseAndIdNot(licenseNumber, userEmail, id)) {
-            return true;
-        }
-        if (driverRepository.existsByLicenseNumberIgnoreCaseAndIdNot(licenseNumber, id) && SecurityUtils.DEFAULT_USER_EMAIL.equalsIgnoreCase(userEmail)) {
-            return true;
-        }
-        return false;
+        return driverRepository.existsByLicenseNumberIgnoreCaseAndUserEmailIgnoreCaseAndIdNot(licenseNumber, userEmail, id);
     }
 
     private <T> void validate(T object) {
