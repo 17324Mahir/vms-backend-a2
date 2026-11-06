@@ -21,3 +21,4 @@ Enterprise systems must not only fulfill functional requirements (CRUD, document
 ### Monitoring & Telemetry
 - Actuator endpoint exposed at `/actuator/health` providing database connectivity, disk space, and application liveness status.
 - Telemetry cards on Dashboard surface operational status and real-time alerts.
+

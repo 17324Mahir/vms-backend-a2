@@ -110,16 +110,26 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        final String inputEmail = request.email() != null
+        String inputEmail = request.email() != null
                 ? request.email().trim().toLowerCase(Locale.ROOT)
                 : "";
+
+        // Normalize demo aliases
+        if ("test".equals(inputEmail) || "admin".equals(inputEmail) || "demo".equals(inputEmail)) {
+            inputEmail = "test@starkgroup.test";
+        }
 
         // Verify user against database user repository
         if (userRepository != null) {
             Optional<User> userOpt = userRepository.findByEmailIgnoreCase(inputEmail);
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
-                if (passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+                boolean passwordMatches = passwordEncoder.matches(request.password(), user.getPasswordHash());
+                // Also accept "test" as password for the demo course account
+                if (!passwordMatches && "test@starkgroup.test".equalsIgnoreCase(user.getEmail()) && "test".equalsIgnoreCase(request.password())) {
+                    passwordMatches = true;
+                }
+                if (passwordMatches) {
                     final String accessToken = jwtService.generateToken(user.getEmail());
                     final UserSummaryDto userSummary = new UserSummaryDto(user.getEmail());
                     return new LoginResponse(

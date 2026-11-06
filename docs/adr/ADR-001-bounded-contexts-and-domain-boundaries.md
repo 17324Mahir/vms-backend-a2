@@ -76,3 +76,4 @@ We partition the Stark Group VMS architecture into six explicit **Bounded Contex
 - **Positive**: High cohesion within contexts, low coupling across contexts, strict adherence to Single Responsibility Principle (SRP) and Interface Segregation Principle (ISP).
 - **Positive**: Individual contexts can be refactored or extracted into independent microservices with minimal cross-domain refactoring.
 - **Trade-off**: Requires explicit DTO mapping and service contracts between contexts.
+

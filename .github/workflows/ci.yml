@@ -89,3 +89,4 @@ jobs:
           name: backend-jar
           path: build/libs/*.jar
           retention-days: 7
+

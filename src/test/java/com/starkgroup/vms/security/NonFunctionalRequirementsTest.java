@@ -93,3 +93,4 @@ class NonFunctionalRequirementsTest {
                 .andExpect(header().string("X-Frame-Options", "DENY"));
     }
 }
+

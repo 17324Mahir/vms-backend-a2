@@ -61,3 +61,4 @@ We implement a **Strict Row-Level Ownership Contract** enforced across database 
 - **Positive**: Complete defense-in-depth isolation preventing Horizontal Privilege Escalation (IDOR).
 - **Positive**: Multi-tenancy achieved without complex separate database architectures or schema-per-tenant overhead.
 - **Verification**: Covered by automated TDD integration tests specifically testing cross-tenant access rejection.
+
