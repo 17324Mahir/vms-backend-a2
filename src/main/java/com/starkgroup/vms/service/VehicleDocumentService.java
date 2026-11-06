@@ -21,6 +21,8 @@ public interface VehicleDocumentService {
 
     void deleteDocument(@NotNull Long vehicleId, @NotNull Long documentId);
 
+    void deleteDocumentById(@NotNull Long documentId);
+
     long countExpiredDocuments();
 
     long countExpiringSoonDocuments(int days);

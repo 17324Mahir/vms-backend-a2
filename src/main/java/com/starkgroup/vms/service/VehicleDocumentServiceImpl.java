@@ -144,8 +144,13 @@ public class VehicleDocumentServiceImpl implements VehicleDocumentService {
         if (documentId == null) {
             throw new ResourceNotFoundException("Document ID must not be null");
         }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
         VehicleDocument doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+        if (doc.getVehicle() != null && doc.getVehicle().getUserEmail() != null &&
+                !doc.getVehicle().getUserEmail().equalsIgnoreCase(userEmail)) {
+            throw new ResourceNotFoundException("Document not found with id: " + documentId);
+        }
         return DocumentResponse.fromEntity(doc, true);
     }
 
@@ -158,12 +163,37 @@ public class VehicleDocumentServiceImpl implements VehicleDocumentService {
         if (documentId == null) {
             throw new ResourceNotFoundException("Document ID must not be null");
         }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        vehicleRepository.findByIdAndUserEmailIgnoreCase(vehicleId, userEmail)
+                .orElseThrow(() -> new VehicleNotFoundException(vehicleId));
 
         VehicleDocument doc = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
 
         if (!doc.getVehicle().getId().equals(vehicleId)) {
             throw new IllegalArgumentException("Document does not belong to the specified vehicle");
+        }
+        if (doc.getVehicle().getUserEmail() != null &&
+                !doc.getVehicle().getUserEmail().equalsIgnoreCase(userEmail)) {
+            throw new ResourceNotFoundException("Document not found with id: " + documentId);
+        }
+
+        documentRepository.delete(doc);
+    }
+
+    @Override
+    @Transactional
+    public void deleteDocumentById(Long documentId) {
+        if (documentId == null) {
+            throw new ResourceNotFoundException("Document ID must not be null");
+        }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        VehicleDocument doc = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId));
+
+        if (doc.getVehicle() != null && doc.getVehicle().getUserEmail() != null &&
+                !doc.getVehicle().getUserEmail().equalsIgnoreCase(userEmail)) {
+            throw new ResourceNotFoundException("Document not found with id: " + documentId);
         }
 
         documentRepository.delete(doc);

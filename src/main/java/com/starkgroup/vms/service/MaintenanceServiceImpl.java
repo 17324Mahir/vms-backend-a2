@@ -108,8 +108,13 @@ public class MaintenanceServiceImpl implements MaintenanceService {
         if (maintenanceId == null) {
             throw new ResourceNotFoundException("Maintenance ID must not be null");
         }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
         MaintenanceRecord record = maintenanceRepository.findById(maintenanceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Maintenance record not found with id: " + maintenanceId));
+        if (record.getVehicle() != null && record.getVehicle().getUserEmail() != null &&
+                !record.getVehicle().getUserEmail().equalsIgnoreCase(userEmail)) {
+            throw new ResourceNotFoundException("Maintenance record not found with id: " + maintenanceId);
+        }
         return MaintenanceResponse.from(record);
     }
 
@@ -122,12 +127,19 @@ public class MaintenanceServiceImpl implements MaintenanceService {
         if (maintenanceId == null) {
             throw new ResourceNotFoundException("Maintenance ID must not be null");
         }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        vehicleRepository.findByIdAndUserEmailIgnoreCase(vehicleId, userEmail)
+                .orElseThrow(() -> new VehicleNotFoundException(vehicleId));
 
         MaintenanceRecord record = maintenanceRepository.findById(maintenanceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Maintenance record not found with id: " + maintenanceId));
 
         if (!record.getVehicle().getId().equals(vehicleId)) {
             throw new IllegalArgumentException("Maintenance record does not belong to the specified vehicle");
+        }
+        if (record.getVehicle().getUserEmail() != null &&
+                !record.getVehicle().getUserEmail().equalsIgnoreCase(userEmail)) {
+            throw new ResourceNotFoundException("Maintenance record not found with id: " + maintenanceId);
         }
 
         validate(request);
@@ -159,12 +171,72 @@ public class MaintenanceServiceImpl implements MaintenanceService {
         if (maintenanceId == null) {
             throw new ResourceNotFoundException("Maintenance ID must not be null");
         }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        vehicleRepository.findByIdAndUserEmailIgnoreCase(vehicleId, userEmail)
+                .orElseThrow(() -> new VehicleNotFoundException(vehicleId));
 
         MaintenanceRecord record = maintenanceRepository.findById(maintenanceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Maintenance record not found with id: " + maintenanceId));
 
         if (!record.getVehicle().getId().equals(vehicleId)) {
             throw new IllegalArgumentException("Maintenance record does not belong to the specified vehicle");
+        }
+        if (record.getVehicle().getUserEmail() != null &&
+                !record.getVehicle().getUserEmail().equalsIgnoreCase(userEmail)) {
+            throw new ResourceNotFoundException("Maintenance record not found with id: " + maintenanceId);
+        }
+
+        maintenanceRepository.delete(record);
+    }
+
+    @Override
+    @Transactional
+    public MaintenanceResponse updateMaintenanceById(Long maintenanceId, UpdateMaintenanceRequest request) {
+        if (maintenanceId == null) {
+            throw new ResourceNotFoundException("Maintenance ID must not be null");
+        }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        MaintenanceRecord record = maintenanceRepository.findById(maintenanceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Maintenance record not found with id: " + maintenanceId));
+
+        if (record.getVehicle() != null && record.getVehicle().getUserEmail() != null &&
+                !record.getVehicle().getUserEmail().equalsIgnoreCase(userEmail)) {
+            throw new ResourceNotFoundException("Maintenance record not found with id: " + maintenanceId);
+        }
+
+        validate(request);
+
+        record.setMaintenanceDate(request.getMaintenanceDate());
+        record.setMaintenanceType(request.getMaintenanceType());
+        record.setCost(request.getCost());
+        record.setWorkshopVendor(request.getWorkshopVendor().trim());
+        record.setOdometerReading(request.getOdometerReading());
+        record.setNotes(request.getNotes() != null ? request.getNotes().trim() : null);
+
+        MaintenanceRecord updated = maintenanceRepository.save(record);
+
+        if (request.getUpdateVehicleStatus() != null) {
+            Vehicle vehicle = record.getVehicle();
+            vehicle.setStatus(request.getUpdateVehicleStatus());
+            vehicleRepository.save(vehicle);
+        }
+
+        return MaintenanceResponse.from(updated);
+    }
+
+    @Override
+    @Transactional
+    public void deleteMaintenanceById(Long maintenanceId) {
+        if (maintenanceId == null) {
+            throw new ResourceNotFoundException("Maintenance ID must not be null");
+        }
+        String userEmail = SecurityUtils.getCurrentUserEmail();
+        MaintenanceRecord record = maintenanceRepository.findById(maintenanceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Maintenance record not found with id: " + maintenanceId));
+
+        if (record.getVehicle() != null && record.getVehicle().getUserEmail() != null &&
+                !record.getVehicle().getUserEmail().equalsIgnoreCase(userEmail)) {
+            throw new ResourceNotFoundException("Maintenance record not found with id: " + maintenanceId);
         }
 
         maintenanceRepository.delete(record);

@@ -21,7 +21,11 @@ public interface MaintenanceService {
 
     MaintenanceResponse updateMaintenance(@NotNull Long vehicleId, @NotNull Long maintenanceId, @Valid @NotNull UpdateMaintenanceRequest request);
 
+    MaintenanceResponse updateMaintenanceById(@NotNull Long maintenanceId, @Valid @NotNull UpdateMaintenanceRequest request);
+
     void deleteMaintenance(@NotNull Long vehicleId, @NotNull Long maintenanceId);
+
+    void deleteMaintenanceById(@NotNull Long maintenanceId);
 
     BigDecimal getTotalMaintenanceCost();
 
