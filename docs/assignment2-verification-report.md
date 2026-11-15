@@ -156,16 +156,21 @@ CREATE TABLE IF NOT EXISTS vehicle_maintenance_records (
 curl -s -X POST -H "Content-Type: application/json" \
   -d '{"email":"test@starkgroup.test","password":"Password123!"}' \
   "https://vms-backend-a2.onrender.com/api/auth/login"
-# Result: 200 OK with Bearer JWT
+# Result: 200 OK with Bearer JWT (expiresIn: 86400)
 
-# 2. Fetch Live Dashboard Metrics
+# 2. Verify Session & Profile Persistence
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://vms-backend-a2.onrender.com/api/auth/me"
+# Result: 200 OK {"email":"test@starkgroup.test"}
+
+# 3. Fetch Live Dashboard Metrics
 curl -s -H "Authorization: Bearer $TOKEN" \
   "https://vms-backend-a2.onrender.com/api/dashboard/stats"
 # Result: {"totalVehicles":5,"activeVehicles":3,"maintenanceVehicles":1,"inactiveVehicles":1,
 #          "totalDrivers":1,"availableDrivers":0,"assignedDrivers":1,"totalDocuments":1,
 #          "totalMaintenanceCost":350.00,"totalMaintenanceRecords":1,...}
 
-# 3. Verify Frontend Delivery Headers
+# 4. Verify Frontend Delivery Headers
 curl -sI "https://vms-frontend-stark-a2.netlify.app"
 # Result: HTTP/2 200 OK, x-content-type-options: nosniff, x-frame-options: DENY
 ```

@@ -8,12 +8,15 @@ import com.starkgroup.vms.dto.LoginResponse;
 import com.starkgroup.vms.dto.RegisterRequest;
 import com.starkgroup.vms.dto.ResetPasswordRequest;
 import com.starkgroup.vms.dto.ResetPasswordResponse;
+import com.starkgroup.vms.dto.UserSummaryDto;
 import com.starkgroup.vms.dto.VerifyResetCodeRequest;
 import com.starkgroup.vms.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -41,6 +44,17 @@ public class AuthController {
                 .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, max-age=0")
                 .header(HttpHeaders.PRAGMA, "no-cache")
                 .body(response);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserSummaryDto> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null || jwt.getSubject() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, max-age=0")
+                .header(HttpHeaders.PRAGMA, "no-cache")
+                .body(new UserSummaryDto(jwt.getSubject()));
     }
 
     @PostMapping("/login")

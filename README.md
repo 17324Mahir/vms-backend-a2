@@ -12,6 +12,7 @@ All endpoints (except `/api/auth/login` and `/actuator/health`) require a valid 
 | Method | Endpoint | Description | Status Codes |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/auth/login` | Authenticate course user and obtain Bearer JWT token | 200 OK, 401 Unauthorized, 400 Bad Request |
+| `GET` | `/api/auth/me` | Retrieve authenticated user profile and verify active session | 200 OK, 401 Unauthorized |
 | `GET` | `/api/vehicles` | List or paginate/filter vehicles (`page`, `size`, `search`, `status`, `company`, `sortBy`, `sortDir`) | 200 OK, 401 Unauthorized |
 | `GET` | `/api/vehicles/{id}` | Retrieve details of a single vehicle | 200 OK, 401 Unauthorized, 404 Not Found |
 | `POST` | `/api/vehicles` | Register a new vehicle | 201 Created, 400 Bad Request, 401 Unauthorized, 409 Conflict |
